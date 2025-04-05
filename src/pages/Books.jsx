@@ -1,4 +1,4 @@
-// src/pages/Books.jsx
+// src/pages/Books.jsx - with Barcode Scanner Integration
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -15,8 +15,8 @@ import {
   Tag,
   Tooltip,
   Popconfirm,
-  Drawer,
-  Empty,
+  Divider,
+  message,
 } from 'antd';
 import {
   SearchOutlined,
@@ -24,11 +24,11 @@ import {
   EditOutlined,
   DeleteOutlined,
   BookOutlined,
-  InfoCircleOutlined,
 } from '@ant-design/icons';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAppContext } from '../context/AppContext';
+import BarcodeScanner from '../components/common/BarcodeScanner';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -63,6 +63,11 @@ const ActionsColumn = styled.div`
   gap: 8px;
 `;
 
+const ISBNFieldContainer = styled.div`
+  display: flex;
+  gap: 8px;
+`;
+
 const Books = () => {
   const {
     books,
@@ -75,6 +80,9 @@ const Books = () => {
     createBookModel,
   } = useAppContext();
 
+  const location = useLocation();
+  const navigate = useNavigate();
+
   // State
   const [form] = Form.useForm();
   const [searchText, setSearchText] = useState('');
@@ -86,6 +94,21 @@ const Books = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingBook, setEditingBook] = useState(null);
   const [filteredBooks, setFilteredBooks] = useState([]);
+
+  // Check for edit parameter in URL
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const editId = queryParams.get('edit');
+
+    if (editId) {
+      const bookToEdit = books.find((book) => book.id === editId);
+      if (bookToEdit) {
+        showModal(bookToEdit);
+        // Remove the query parameter
+        navigate('/books', { replace: true });
+      }
+    }
+  }, [location, books, navigate]);
 
   // Apply filters and search
   useEffect(() => {
@@ -194,8 +217,10 @@ const Books = () => {
 
     if (editingBook) {
       await updateBook(editingBook.id, formattedValues);
+      message.success('הספר עודכן בהצלחה');
     } else {
       await addBook(formattedValues);
+      message.success('הספר נוסף בהצלחה');
     }
 
     setIsModalVisible(false);
@@ -204,6 +229,69 @@ const Books = () => {
 
   const handleDelete = async (bookId) => {
     await deleteBook(bookId);
+    message.success('הספר נמחק בהצלחה');
+  };
+
+  // Handle barcode scan results
+  const handleBarcodeScan = (scanData) => {
+    console.log('Barcode scan result:', scanData);
+
+    // Update the ISBN field
+    form.setFieldValue('isbn', scanData.isbn);
+
+    // If we have more data from online, fill in other fields
+    if (scanData.title) {
+      form.setFieldValue('title', scanData.title);
+    }
+
+    if (scanData.pageCount) {
+      form.setFieldValue('pageCount', scanData.pageCount);
+    }
+
+    if (scanData.publishDate) {
+      // Try to extract year from publish date
+      const yearMatch = scanData.publishDate.match(/\d{4}/);
+      if (yearMatch) {
+        form.setFieldValue('publicationYear', dayjs(yearMatch[0]));
+      }
+    }
+
+    // If we have author information, try to find or create the author
+    if (scanData.authors) {
+      // This is a simplified approach - in a real app, you might want to
+      // show a dialog asking the user to select an existing author or create a new one
+      const existingAuthor = authors.find(
+        (author) => author.name.toLowerCase() === scanData.authors.toLowerCase()
+      );
+
+      if (existingAuthor) {
+        form.setFieldValue('author', existingAuthor.id);
+      } else {
+        // Here you could show a dialog to create a new author
+        message.info(
+          `מחבר "${scanData.authors}" לא נמצא במערכת. ניתן להוסיף אותו דרך מסך הסופרים.`
+        );
+      }
+    }
+
+    // Same for publisher
+    if (scanData.publisher) {
+      const existingPublisher = publishers.find(
+        (publisher) =>
+          publisher.name.toLowerCase() === scanData.publisher.toLowerCase()
+      );
+
+      if (existingPublisher) {
+        form.setFieldValue('publisher', existingPublisher.id);
+      } else {
+        message.info(
+          `הוצאה לאור "${scanData.publisher}" לא נמצאה במערכת. ניתן להוסיף אותה דרך מסך ההוצאות לאור.`
+        );
+      }
+    }
+
+    // Display success message
+    message.success('מידע מברקוד נוסף לטופס');
   };
 
   // Table columns
@@ -414,11 +502,12 @@ const Books = () => {
               dropdownRender={(menu) => (
                 <>
                   {menu}
+                  <Divider style={{ margin: '8px 0' }} />
                   <Button
                     type="link"
                     block
                     icon={<PlusOutlined />}
-                    onClick={() => (window.location.href = '/authors')}
+                    onClick={() => navigate('/authors')}
                   >
                     הוסף מחבר חדש
                   </Button>
@@ -442,11 +531,12 @@ const Books = () => {
               dropdownRender={(menu) => (
                 <>
                   {menu}
+                  <Divider style={{ margin: '8px 0' }} />
                   <Button
                     type="link"
                     block
                     icon={<PlusOutlined />}
-                    onClick={() => (window.location.href = '/publishers')}
+                    onClick={() => navigate('/publishers')}
                   >
                     הוסף הוצאה לאור חדשה
                   </Button>
@@ -471,11 +561,12 @@ const Books = () => {
               dropdownRender={(menu) => (
                 <>
                   {menu}
+                  <Divider style={{ margin: '8px 0' }} />
                   <Button
                     type="link"
                     block
                     icon={<PlusOutlined />}
-                    onClick={() => (window.location.href = '/categories')}
+                    onClick={() => navigate('/categories')}
                   >
                     הוסף קטגוריה חדשה
                   </Button>
@@ -491,7 +582,10 @@ const Books = () => {
           </Form.Item>
 
           <Form.Item name="isbn" label="מסתב (ISBN)">
-            <Input placeholder="הזן מסתב" />
+            <ISBNFieldContainer>
+              <Input placeholder="הזן מסתב" style={{ flex: 1 }} />
+              <BarcodeScanner onScan={handleBarcodeScan} buttonText="סרוק" />
+            </ISBNFieldContainer>
           </Form.Item>
 
           <div style={{ display: 'flex', gap: 16 }}>

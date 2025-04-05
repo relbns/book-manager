@@ -21,7 +21,7 @@ import {
   AlertOutlined,
   CheckCircleOutlined,
 } from '@ant-design/icons';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import styled from 'styled-components';
 import dayjs from 'dayjs';
@@ -40,8 +40,22 @@ const StatCard = styled(StyledCard)`
   }
 `;
 
+const QuickActionButton = styled(Button)`
+  height: auto;
+  padding: 16px;
+  text-align: center;
+  border-radius: 6px;
+
+  span {
+    display: block;
+    margin-top: 8px;
+  }
+`;
+
 const Home = () => {
   const { books, loans, authors, categories, publishers } = useAppContext();
+  const navigate = useNavigate();
+
   const [statistics, setStatistics] = useState({
     bookCount: 0,
     loanedBooks: 0,
@@ -117,6 +131,11 @@ const Home = () => {
     });
   }, [books, loans, categories]);
 
+  // Navigate to specific page
+  const navigateTo = (path) => {
+    navigate(path);
+  };
+
   // Render loan status
   const renderLoanStatus = (daysLeft) => {
     if (daysLeft === null) return <Tag>לא צוין</Tag>;
@@ -188,9 +207,9 @@ const Home = () => {
               </div>
             }
             extra={
-              <Link to="/loans">
-                <Button type="link">כל ההשאלות</Button>
-              </Link>
+              <Button type="link" onClick={() => navigateTo('/loans')}>
+                כל ההשאלות
+              </Button>
             }
           >
             {statistics.recentLoans.length > 0 ? (
@@ -200,9 +219,12 @@ const Home = () => {
                   <List.Item actions={[renderLoanStatus(item.daysLeft)]}>
                     <List.Item.Meta
                       title={
-                        <Link to={`/books/${item.bookId}`}>
+                        <span
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => navigateTo(`/books/${item.bookId}`)}
+                        >
                           {item.bookTitle}
-                        </Link>
+                        </span>
                       }
                       description={
                         <Text>
@@ -232,9 +254,9 @@ const Home = () => {
               </div>
             }
             extra={
-              <Link to="/categories">
-                <Button type="link">כל הקטגוריות</Button>
-              </Link>
+              <Button type="link" onClick={() => navigateTo('/categories')}>
+                כל הקטגוריות
+              </Button>
             }
           >
             {statistics.topCategories.length > 0 ? (
@@ -283,19 +305,37 @@ const Home = () => {
         <Divider />
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={8}>
-            <Button type="primary" icon={<BookOutlined />} size="large" block>
-              <Link to="/books">ניהול ספרים</Link>
-            </Button>
+            <QuickActionButton
+              type="primary"
+              size="large"
+              block
+              onClick={() => navigateTo('/books')}
+            >
+              <BookOutlined style={{ fontSize: 24 }} />
+              <span>ניהול ספרים</span>
+            </QuickActionButton>
           </Col>
           <Col xs={24} sm={8}>
-            <Button type="primary" icon={<TeamOutlined />} size="large" block>
-              <Link to="/loans">ניהול השאלות</Link>
-            </Button>
+            <QuickActionButton
+              type="primary"
+              size="large"
+              block
+              onClick={() => navigateTo('/loans')}
+            >
+              <TeamOutlined style={{ fontSize: 24 }} />
+              <span>ניהול השאלות</span>
+            </QuickActionButton>
           </Col>
           <Col xs={24} sm={8}>
-            <Button type="primary" icon={<ReadOutlined />} size="large" block>
-              <Link to="/authors">ניהול סופרים</Link>
-            </Button>
+            <QuickActionButton
+              type="primary"
+              size="large"
+              block
+              onClick={() => navigateTo('/authors')}
+            >
+              <ReadOutlined style={{ fontSize: 24 }} />
+              <span>ניהול סופרים</span>
+            </QuickActionButton>
           </Col>
         </Row>
       </Card>
@@ -309,8 +349,12 @@ const Home = () => {
           showIcon
           icon={<AlertOutlined />}
           action={
-            <Button size="small" type="primary">
-              <Link to="/loans">צפה בהשאלות</Link>
+            <Button
+              size="small"
+              type="primary"
+              onClick={() => navigateTo('/loans?tab=overdue')}
+            >
+              צפה בהשאלות
             </Button>
           }
           style={{ marginTop: 24 }}
