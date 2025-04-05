@@ -1,6 +1,6 @@
 // src/App.jsx
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useAppContext } from './context/AppContext';
 import { ThemeProvider } from './config/theme.jsx';
 import Login from './components/Auth/Login';
@@ -40,7 +40,7 @@ const AppWithAuth = () => {
 
   return (
     <ThemeProvider theme={theme}>
-      <BrowserRouter basename="/book-manager">
+      <HashRouter>
         <Routes>
           <Route
             path="/login"
@@ -225,7 +225,7 @@ const AppWithAuth = () => {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </ThemeProvider>
   );
 };

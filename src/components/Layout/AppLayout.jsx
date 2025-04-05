@@ -27,7 +27,6 @@ import { useAppContext } from '../../context/AppContext';
 
 const { Header, Content, Sider } = Layout;
 const { Title } = Typography;
-const { useToken } = antTheme;
 
 const StyledSider = styled(Sider)`
   height: 100vh;
@@ -132,7 +131,7 @@ const AppLayout = ({ children }) => {
   const { theme, toggleTheme, handleLogout, loading } = useAppContext();
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { token } = useToken();
+  const { token } = antTheme.useToken();
 
   const toggleCollapsed = () => {
     setCollapsed(!collapsed);
