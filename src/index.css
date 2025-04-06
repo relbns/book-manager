@@ -1,4 +1,7 @@
-// src/index.css
+/* src/index.css */
+@import './mobile-responsive.css';
+@import './global-responsive.css';
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -6,27 +9,27 @@
 }
 
 body {
-  font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans',
-    'Helvetica Neue', sans-serif;
+  font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell',
+    'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   margin: 0;
 }
 
 /* RTL specific styles */
-[dir="rtl"] .ant-table-column-sorter {
+[dir='rtl'] .ant-table-column-sorter {
   margin-right: 0.5rem;
 }
 
-[dir="rtl"] .ant-form-item-label {
+[dir='rtl'] .ant-form-item-label {
   text-align: right;
 }
 
-[dir="rtl"] .ant-select-selection-item {
+[dir='rtl'] .ant-select-selection-item {
   text-align: right;
 }
 
-[dir="rtl"] .ant-modal-confirm-body .ant-modal-confirm-content {
+[dir='rtl'] .ant-modal-confirm-body .ant-modal-confirm-content {
   text-align: right;
 }
 
@@ -50,26 +53,36 @@ body {
 }
 
 /* Dark mode scrollbar */
-body[data-theme="dark"] ::-webkit-scrollbar-track {
+body[data-theme='dark'] ::-webkit-scrollbar-track {
   background: #1f1f1f;
 }
 
-body[data-theme="dark"] ::-webkit-scrollbar-thumb {
+body[data-theme='dark'] ::-webkit-scrollbar-thumb {
   background: #555;
 }
 
-body[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+body[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
   background: #777;
 }
 
-// src/main.jsx
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-import './index.css';
+/* Fix for RTL layout issues */
+.ant-layout {
+  direction: rtl;
+}
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+.ant-menu-inline,
+.ant-menu-vertical,
+.ant-menu-vertical-left {
+  border-left: none !important;
+}
+
+/* Fix for dropdown menus */
+.ant-dropdown-menu-item,
+.ant-dropdown-menu-submenu-title {
+  text-align: right;
+}
+
+/* Fix for input addons */
+.ant-input-group-addon {
+  direction: ltr;
+}

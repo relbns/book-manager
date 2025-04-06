@@ -26,6 +26,7 @@ import {
 import styled from 'styled-components';
 import { useAppContext } from '../context/AppContext';
 import dayjs from 'dayjs';
+import ResponsiveFilterContainer from '../components/common/ResponsiveFilterContainer';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -256,7 +257,7 @@ const Authors = () => {
           </Button>
         </div>
 
-        <FilterContainer>
+        <ResponsiveFilterContainer>
           <Input
             placeholder="חיפוש לפי שם או אזרחות"
             prefix={<SearchOutlined />}
@@ -279,7 +280,7 @@ const Authors = () => {
               ))}
             </Select>
           )}
-        </FilterContainer>
+        </ResponsiveFilterContainer>
 
         <StyledTable
           dataSource={filteredAuthors}

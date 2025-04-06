@@ -1,0 +1,157 @@
+/* global-responsive.css - Import this in src/index.css */
+
+/* Base responsive styles */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* RTL specific fixes */
+[dir='rtl'] .ant-layout {
+  direction: rtl;
+}
+
+[dir='rtl'] .ant-table-thead > tr > th {
+  text-align: right;
+}
+
+[dir='rtl'] .ant-table-tbody > tr > td {
+  text-align: right;
+}
+
+[dir='rtl'] .ant-form-item-label {
+  text-align: right;
+}
+
+[dir='rtl'] .ant-modal-header {
+  direction: rtl;
+}
+
+[dir='rtl'] .ant-modal-body {
+  direction: rtl;
+  text-align: right;
+}
+
+[dir='rtl'] .ant-modal-footer {
+  direction: rtl;
+}
+
+[dir='rtl'] .ant-select-selection-item {
+  text-align: right;
+}
+
+[dir='rtl'] .ant-select-dropdown {
+  text-align: right;
+}
+
+[dir='rtl'] .ant-modal-confirm-body .ant-modal-confirm-content {
+  text-align: right;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  /* Make tables responsive */
+  .ant-table {
+    overflow-x: auto;
+  }
+
+  /* Adjust form layouts */
+  .ant-form-item {
+    margin-bottom: 12px;
+  }
+
+  /* Adjust card padding */
+  .ant-card-body {
+    padding: 16px 12px;
+  }
+
+  /* Adjust typography */
+  h1.ant-typography,
+  h2.ant-typography {
+    font-size: 20px !important;
+    line-height: 1.2 !important;
+  }
+
+  /* Adjust padding for content areas */
+  .ant-layout-content {
+    padding: 12px !important;
+  }
+
+  /* Fix filter containers to stack on mobile */
+  .filter-container {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .filter-container .ant-input-search,
+  .filter-container .ant-select {
+    width: 100% !important;
+  }
+
+  /* Adjust buttons */
+  .ant-btn {
+    font-size: 14px;
+    padding: 4px 8px;
+    height: auto;
+  }
+
+  /* Make sure modals don't overflow */
+  .ant-modal {
+    width: 90% !important;
+    margin: 0 auto;
+  }
+
+  /* Fix grids on mobile */
+  .ant-row {
+    margin-right: 0 !important;
+    margin-left: 0 !important;
+  }
+}
+
+/* Handle small mobile phones */
+@media (max-width: 375px) {
+  .ant-card-body {
+    padding: 12px 8px;
+  }
+
+  .ant-table-cell {
+    padding: 8px 4px !important;
+  }
+
+  .ant-form-item-label {
+    padding-bottom: 4px;
+  }
+}
+
+/* Fix for menu issues */
+.ant-menu-title-content {
+  text-align: right;
+}
+
+/* Adjust filter container globally */
+.filter-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 768px) {
+  .filter-container {
+    flex-direction: column;
+  }
+}
+
+/* Fix scroll issues */
+.ant-layout-sider-children {
+  overflow-y: auto;
+  overflow-x: hidden;
+}

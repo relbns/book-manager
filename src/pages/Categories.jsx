@@ -24,6 +24,7 @@ import {
 } from '@ant-design/icons';
 import styled from 'styled-components';
 import { useAppContext } from '../context/AppContext';
+import ResponsiveFilterContainer from '../components/common/ResponsiveFilterContainer';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -296,7 +297,7 @@ const Categories = () => {
           </Button>
         </div>
 
-        <FilterContainer>
+        <ResponsiveFilterContainer>
           <Input
             placeholder="חיפוש לפי שם או תיאור"
             prefix={<SearchOutlined />}
@@ -304,7 +305,7 @@ const Categories = () => {
             onChange={(e) => setSearchText(e.target.value)}
             style={{ width: 300 }}
           />
-        </FilterContainer>
+        </ResponsiveFilterContainer>
 
         <StyledTable
           dataSource={filteredCategories}

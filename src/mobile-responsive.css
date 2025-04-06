@@ -1,0 +1,305 @@
+/* mobile-responsive.css - Import this in src/index.css */
+
+/* Base responsive styles */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* RTL specific fixes */
+[dir='rtl'] .ant-layout {
+  direction: rtl;
+}
+
+[dir='rtl'] .ant-table-thead > tr > th,
+[dir='rtl'] .ant-table-tbody > tr > td,
+[dir='rtl'] .ant-form-item-label,
+[dir='rtl'] .ant-menu-title-content,
+[dir='rtl'] .ant-modal-title,
+[dir='rtl'] .ant-modal-body,
+[dir='rtl'] .ant-modal-footer,
+[dir='rtl'] .ant-select-selection-item,
+[dir='rtl'] .ant-select-dropdown,
+[dir='rtl'] .ant-dropdown-menu,
+[dir='rtl'] .ant-drawer-body {
+  text-align: right;
+}
+
+[dir='rtl'] .ant-modal-confirm-body .ant-modal-confirm-content {
+  text-align: right;
+}
+
+[dir='rtl'] .ant-drawer {
+  direction: rtl;
+}
+
+/* Mobile UI adjustments */
+@media (max-width: 768px) {
+  /* Typography */
+  h1.ant-typography {
+    font-size: 24px !important;
+  }
+
+  h2.ant-typography {
+    font-size: 20px !important;
+  }
+
+  h3.ant-typography {
+    font-size: 18px !important;
+  }
+
+  h4.ant-typography {
+    font-size: 16px !important;
+  }
+
+  /* Cards */
+  .ant-card {
+    margin-bottom: 12px !important;
+  }
+
+  .ant-card-body {
+    padding: 16px 12px;
+  }
+
+  /* Tables */
+  .ant-table {
+    overflow-x: auto;
+    font-size: 14px !important;
+  }
+
+  .ant-table-cell {
+    padding: 8px 6px !important;
+    white-space: nowrap;
+  }
+
+  /* Make tables scrollable horizontally */
+  .ant-table-wrapper {
+    overflow-x: auto;
+  }
+
+  /* Forms */
+  .ant-form-item {
+    margin-bottom: 12px;
+  }
+
+  .ant-form-item-label {
+    padding: 0 0 4px !important;
+  }
+
+  .ant-form-item-control-input {
+    min-height: 32px;
+  }
+
+  /* Adjust spacing in form layouts */
+  .ant-form .ant-row {
+    flex-direction: column;
+  }
+
+  /* Buttons */
+  .ant-btn {
+    font-size: 14px;
+    height: auto;
+    padding: 4px 12px;
+  }
+
+  /* Inputs */
+  .ant-input,
+  .ant-select {
+    font-size: 14px;
+  }
+
+  /* Statistics cards */
+  .ant-statistic-title {
+    font-size: 14px !important;
+  }
+
+  .ant-statistic-content {
+    font-size: 20px !important;
+  }
+
+  /* Space */
+  .ant-space {
+    gap: 8px !important;
+  }
+
+  /* Modal */
+  .ant-modal {
+    width: 95% !important;
+    max-width: 95% !important;
+    margin: 8px auto !important;
+  }
+
+  .ant-modal-content {
+    padding: 16px 12px !important;
+  }
+
+  .ant-modal-header {
+    padding: 12px 16px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .ant-modal-body {
+    padding: 12px !important;
+  }
+
+  .ant-modal-footer {
+    padding: 12px 16px !important;
+    margin-top: 8px !important;
+  }
+
+  /* Descriptions */
+  .ant-descriptions-item-label,
+  .ant-descriptions-item-content {
+    padding: 8px !important;
+  }
+
+  /* Drawer */
+  .ant-drawer-content-wrapper {
+    width: 75% !important;
+  }
+
+  /* Tabs */
+  .ant-tabs-tab {
+    padding: 8px 12px !important;
+    margin: 0 4px 0 0 !important;
+  }
+
+  .ant-tabs-nav {
+    margin-bottom: 12px !important;
+  }
+
+  /* Filter containers on mobile to stack vertically */
+  .filter-container {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .filter-container > * {
+    width: 100% !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* Fix grid layout on mobile */
+  .ant-row {
+    margin-right: 0 !important;
+    margin-left: 0 !important;
+  }
+
+  /* Adjust col padding */
+  .ant-col {
+    padding-right: 4px !important;
+    padding-left: 4px !important;
+  }
+
+  /* Fix select dropdown for mobile */
+  .ant-select-dropdown {
+    max-width: 95vw !important;
+  }
+
+  /* Date picker styles */
+  .ant-picker {
+    width: 100% !important;
+  }
+
+  /* Fix for float buttons */
+  .ant-float-btn {
+    right: 12px;
+    bottom: 12px;
+  }
+
+  /* Fix button group spacing */
+  .ant-btn-group .ant-btn {
+    padding: 0 8px;
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 375px) {
+  .ant-card-body {
+    padding: 10px 8px;
+  }
+
+  .ant-table-cell {
+    padding: 6px 4px !important;
+    font-size: 12px !important;
+  }
+
+  .ant-btn {
+    padding: 2px 8px;
+    font-size: 12px;
+  }
+
+  .ant-statistic-content {
+    font-size: 18px !important;
+  }
+}
+
+/* Books page specific mobile styles */
+@media (max-width: 768px) {
+  /* Make book action buttons stack better in mobile */
+  .book-actions-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .book-cover-container {
+    max-width: 100% !important;
+    margin-bottom: 16px;
+  }
+
+  /* Adjust book details */
+  .book-details-container {
+    flex-direction: column !important;
+  }
+}
+
+/* Fix the drawer menu styling */
+.ant-drawer-body {
+  padding: 0 !important;
+}
+
+.ant-drawer .ant-menu {
+  border-right: none !important;
+}
+
+/* Make sure menu items are visible */
+.ant-drawer .ant-menu-item,
+.ant-drawer .ant-menu-submenu-title {
+  height: auto !important;
+  line-height: 40px !important;
+}
+
+/* Improve buttons on mobile when stacked */
+.mobile-action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Custom class for responsive filter containers */
+.responsive-filter {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 768px) {
+  .responsive-filter {
+    flex-direction: column;
+  }
+
+  .responsive-filter > * {
+    width: 100% !important;
+  }
+}

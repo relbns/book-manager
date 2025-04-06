@@ -1,4 +1,3 @@
-// src/pages/Books.jsx - with Barcode Scanner Integration
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -17,6 +16,11 @@ import {
   Popconfirm,
   Divider,
   message,
+  List,
+  Avatar,
+  Tabs,
+  Collapse,
+  Empty,
 } from 'antd';
 import {
   SearchOutlined,
@@ -24,6 +28,10 @@ import {
   EditOutlined,
   DeleteOutlined,
   BookOutlined,
+  FilterOutlined,
+  SortAscendingOutlined,
+  InfoCircleOutlined,
+  MenuOutlined,
 } from '@ant-design/icons';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
@@ -31,9 +39,11 @@ import { useAppContext } from '../context/AppContext';
 import BarcodeScanner from '../components/common/BarcodeScanner';
 import dayjs from 'dayjs';
 
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
+const { TabPane } = Tabs;
+const { Panel } = Collapse;
 
 // Style for RTL tables
 const StyledTable = styled(Table)`
@@ -44,10 +54,24 @@ const StyledTable = styled(Table)`
   .ant-table-cell {
     text-align: right;
   }
+
+  @media (max-width: 768px) {
+    .ant-table-cell {
+      padding: 8px 4px;
+      white-space: nowrap;
+    }
+  }
 `;
 
 const StyledCard = styled(Card)`
   margin-bottom: 24px;
+
+  @media (max-width: 768px) {
+    margin-bottom: 16px;
+    .ant-card-body {
+      padding: 12px;
+    }
+  }
 `;
 
 const FilterContainer = styled.div`
@@ -55,6 +79,15 @@ const FilterContainer = styled.div`
   flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 24px;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 8px;
+
+    & > * {
+      width: 100% !important;
+    }
+  }
 `;
 
 const ActionsColumn = styled.div`
@@ -66,6 +99,57 @@ const ActionsColumn = styled.div`
 const ISBNFieldContainer = styled.div`
   display: flex;
   gap: 8px;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+
+    & > button {
+      margin-top: 8px;
+    }
+  }
+`;
+
+const TitleContainer = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+
+    h2 {
+      margin-bottom: 0 !important;
+    }
+  }
+`;
+
+const ListItemMeta = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
+const ListItemActions = styled.div`
+  display: flex;
+  gap: 8px;
+
+  @media (max-width: 480px) {
+    flex-direction: column;
+
+    button {
+      width: 100%;
+    }
+  }
+`;
+
+const FilterCollapse = styled(Collapse)`
+  margin-bottom: 16px;
+
+  .ant-collapse-content-box {
+    padding-top: 16px !important;
+  }
 `;
 
 const Books = () => {
@@ -94,6 +178,18 @@ const Books = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingBook, setEditingBook] = useState(null);
   const [filteredBooks, setFilteredBooks] = useState([]);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [activeTab, setActiveTab] = useState('table');
+
+  // Check for screen size changes
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Check for edit parameter in URL
   useEffect(() => {
@@ -146,6 +242,9 @@ const Books = () => {
         filters.publishers.includes(book.publisher)
       );
     }
+
+    // Sort by title by default
+    result = result.sort((a, b) => a.title.localeCompare(b.title));
 
     setFilteredBooks(result);
   }, [books, searchText, filters]);
@@ -215,21 +314,31 @@ const Books = () => {
         : null,
     };
 
-    if (editingBook) {
-      await updateBook(editingBook.id, formattedValues);
-      message.success('הספר עודכן בהצלחה');
-    } else {
-      await addBook(formattedValues);
-      message.success('הספר נוסף בהצלחה');
-    }
+    try {
+      if (editingBook) {
+        await updateBook(editingBook.id, formattedValues);
+        message.success('הספר עודכן בהצלחה');
+      } else {
+        await addBook(formattedValues);
+        message.success('הספר נוסף בהצלחה');
+      }
 
-    setIsModalVisible(false);
-    form.resetFields();
+      setIsModalVisible(false);
+      form.resetFields();
+    } catch (error) {
+      console.error('Error saving book:', error);
+      message.error('אירעה שגיאה בשמירת הספר');
+    }
   };
 
   const handleDelete = async (bookId) => {
-    await deleteBook(bookId);
-    message.success('הספר נמחק בהצלחה');
+    try {
+      await deleteBook(bookId);
+      message.success('הספר נמחק בהצלחה');
+    } catch (error) {
+      console.error('Error deleting book:', error);
+      message.error('אירעה שגיאה במחיקת הספר');
+    }
   };
 
   // Handle barcode scan results
@@ -311,12 +420,14 @@ const Books = () => {
       dataIndex: 'author',
       key: 'author',
       render: (authorId) => getAuthorName(authorId),
+      responsive: ['md'],
     },
     {
       title: 'הוצאה לאור',
       dataIndex: 'publisher',
       key: 'publisher',
       render: (publisherId) => getPublisherName(publisherId),
+      responsive: ['lg'],
     },
     {
       title: 'קטגוריות',
@@ -338,17 +449,19 @@ const Books = () => {
           </Space>
         );
       },
+      responsive: ['xl'],
     },
     {
       title: 'שנת הוצאה',
       dataIndex: 'publicationYear',
       key: 'publicationYear',
       render: (year) => year || '-',
+      responsive: ['md'],
     },
     {
       title: 'פעולות',
       key: 'actions',
-      width: 120,
+      width: isMobile ? 80 : 120,
       render: (_, record) => (
         <ActionsColumn>
           <Tooltip title="עריכה">
@@ -356,6 +469,7 @@ const Books = () => {
               icon={<EditOutlined />}
               type="text"
               onClick={() => showModal(record)}
+              size={isMobile ? 'small' : 'middle'}
             />
           </Tooltip>
           <Tooltip title="מחיקה">
@@ -366,7 +480,12 @@ const Books = () => {
               cancelText="לא"
               placement="topRight"
             >
-              <Button icon={<DeleteOutlined />} type="text" danger />
+              <Button
+                icon={<DeleteOutlined />}
+                type="text"
+                danger
+                size={isMobile ? 'small' : 'middle'}
+              />
             </Popconfirm>
           </Tooltip>
         </ActionsColumn>
@@ -374,96 +493,215 @@ const Books = () => {
     },
   ];
 
+  // Mobile list rendering for books
+  const renderMobileList = () => {
+    return (
+      <List
+        itemLayout="vertical"
+        dataSource={filteredBooks}
+        renderItem={(book) => (
+          <List.Item
+            key={book.id}
+            actions={[
+              <Button
+                key="view"
+                type="link"
+                onClick={() => navigate(`/books/${book.id}`)}
+              >
+                פרטים
+              </Button>,
+              <Button
+                key="edit"
+                type="text"
+                icon={<EditOutlined />}
+                onClick={() => showModal(book)}
+              >
+                עריכה
+              </Button>,
+              <Popconfirm
+                key="delete"
+                title="בטוח שאתה רוצה למחוק את הספר?"
+                onConfirm={() => handleDelete(book.id)}
+                okText="כן"
+                cancelText="לא"
+                placement="topRight"
+              >
+                <Button type="text" danger icon={<DeleteOutlined />}>
+                  מחיקה
+                </Button>
+              </Popconfirm>,
+            ]}
+          >
+            <List.Item.Meta
+              avatar={<Avatar icon={<BookOutlined />} />}
+              title={
+                <Link to={`/books/${book.id}`}>
+                  <Text strong>{book.title}</Text>
+                </Link>
+              }
+              description={
+                <Space direction="vertical" size={0}>
+                  <Text>מחבר: {getAuthorName(book.author)}</Text>
+                  {book.publisher && (
+                    <Text>הוצאה: {getPublisherName(book.publisher)}</Text>
+                  )}
+                  {book.publicationYear && (
+                    <Text>שנה: {book.publicationYear}</Text>
+                  )}
+                  {book.categories && book.categories.length > 0 && (
+                    <Space size={[0, 4]} wrap>
+                      {getCategoryNames(book.categories).map((cat, index) => (
+                        <Tag color={cat.color} key={index}>
+                          {cat.name}
+                        </Tag>
+                      ))}
+                    </Space>
+                  )}
+                </Space>
+              }
+            />
+          </List.Item>
+        )}
+      />
+    );
+  };
+
   return (
     <div>
       <StyledCard>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 16,
-          }}
-        >
+        <TitleContainer>
           <Title level={2}>ספרים</Title>
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => showModal()}
+            size={isMobile ? 'middle' : 'large'}
+            block={isMobile}
           >
             הוספת ספר
           </Button>
-        </div>
-
-        <FilterContainer>
-          <Input
-            placeholder="חיפוש לפי שם, מחבר או מק״ט"
-            prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 300 }}
-          />
-          <Select
-            mode="multiple"
-            allowClear
-            style={{ minWidth: 200 }}
-            placeholder="סינון לפי קטגוריה"
-            value={filters.categories}
-            onChange={(values) =>
-              setFilters({ ...filters, categories: values })
-            }
-          >
-            {categories.map((category) => (
-              <Option key={category.id} value={category.id}>
-                {category.name}
-              </Option>
-            ))}
-          </Select>
-          <Select
-            mode="multiple"
-            allowClear
-            style={{ minWidth: 200 }}
-            placeholder="סינון לפי מחבר"
-            value={filters.authors}
-            onChange={(values) => setFilters({ ...filters, authors: values })}
-          >
-            {authors.map((author) => (
-              <Option key={author.id} value={author.id}>
-                {author.name}
-              </Option>
-            ))}
-          </Select>
-          <Select
-            mode="multiple"
-            allowClear
-            style={{ minWidth: 200 }}
-            placeholder="סינון לפי הוצאה לאור"
-            value={filters.publishers}
-            onChange={(values) =>
-              setFilters({ ...filters, publishers: values })
-            }
-          >
-            {publishers.map((publisher) => (
-              <Option key={publisher.id} value={publisher.id}>
-                {publisher.name}
-              </Option>
-            ))}
-          </Select>
-        </FilterContainer>
-
-        <StyledTable
-          dataSource={filteredBooks}
-          columns={columns}
-          rowKey="id"
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showTotal: (total) => `סה"כ ${total} ספרים`,
-          }}
-          locale={{
-            emptyText: 'לא נמצאו ספרים',
-          }}
+        </TitleContainer>
+        <FilterCollapse
+          items={[
+            {
+              key: '1',
+              header: (
+                <Space>
+                  <FilterOutlined />
+                  <span>סינון ספרים</span>
+                </Space>
+              ),
+              children: (
+                <FilterContainer>
+                  <Input
+                    placeholder="חיפוש לפי שם, מחבר או מק״ט"
+                    prefix={<SearchOutlined />}
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    style={{ width: isMobile ? '100%' : 300 }}
+                    allowClear
+                  />
+                  <Select
+                    mode="multiple"
+                    allowClear
+                    style={{ width: '100%' }}
+                    placeholder="סינון לפי קטגוריה"
+                    value={filters.categories}
+                    onChange={(values) =>
+                      setFilters({ ...filters, categories: values })
+                    }
+                    options={categories.map((category) => ({
+                      key: category.id,
+                      value: category.id,
+                      label: category.name,
+                    }))}
+                  />
+                  <Select
+                    mode="multiple"
+                    allowClear
+                    style={{ width: '100%' }}
+                    placeholder="סינון לפי מחבר"
+                    value={filters.authors}
+                    onChange={(values) =>
+                      setFilters({ ...filters, authors: values })
+                    }
+                    options={authors.map((author) => ({
+                      key: author.id,
+                      value: author.id,
+                      label: author.name,
+                    }))}
+                  />
+                  <Select
+                    mode="multiple"
+                    allowClear
+                    style={{ width: '100%' }}
+                    placeholder="סינון לפי הוצאה לאור"
+                    value={filters.publishers}
+                    onChange={(values) =>
+                      setFilters({ ...filters, publishers: values })
+                    }
+                    options={publishers.map((publisher) => ({
+                      key: publisher.id,
+                      value: publisher.id,
+                      label: publisher.name,
+                    }))}
+                  />
+                </FilterContainer>
+              ),
+            },
+          ]}
         />
+        {isMobile && (
+          <Tabs
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            centered
+            size="small"
+            style={{ marginBottom: 16 }}
+            items={[
+              {
+                key: 'list',
+                label: (
+                  <Space>
+                    <MenuOutlined />
+                    <span>רשימה</span>
+                  </Space>
+                ),
+              },
+              {
+                key: 'table',
+                label: (
+                  <Space>
+                    <InfoCircleOutlined />
+                    <span>טבלה</span>
+                  </Space>
+                ),
+              },
+            ]}
+          />
+        )}
+        {filteredBooks.length === 0 ? (
+          <Empty description="לא נמצאו ספרים" />
+        ) : isMobile && activeTab === 'list' ? (
+          renderMobileList()
+        ) : (
+          <StyledTable
+            dataSource={filteredBooks}
+            columns={columns}
+            rowKey="id"
+            pagination={{
+              pageSize: isMobile ? 5 : 10,
+              showSizeChanger: !isMobile,
+              size: isMobile ? 'small' : 'default',
+              showTotal: (total) => `סה"כ ${total} ספרים`,
+            }}
+            size={isMobile ? 'small' : 'middle'}
+            scroll={isMobile ? { x: true } : undefined}
+            locale={{
+              emptyText: 'לא נמצאו ספרים',
+            }}
+          />
+        )}
       </StyledCard>
 
       {/* Book Form Modal */}
@@ -473,13 +711,15 @@ const Books = () => {
         onCancel={handleCancel}
         footer={null}
         destroyOnClose
-        width={700}
+        width={isMobile ? '95%' : 700}
+        centered
       >
         <Form
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
           initialValues={createBookModel()}
+          size={isMobile ? 'middle' : 'large'}
         >
           <Form.Item
             name="title"
@@ -584,11 +824,21 @@ const Books = () => {
           <Form.Item name="isbn" label="מסתב (ISBN)">
             <ISBNFieldContainer>
               <Input placeholder="הזן מסתב" style={{ flex: 1 }} />
-              <BarcodeScanner onScan={handleBarcodeScan} buttonText="סרוק" />
+              <BarcodeScanner
+                onScan={handleBarcodeScan}
+                buttonText="סרוק"
+                block={isMobile}
+              />
             </ISBNFieldContainer>
           </Form.Item>
 
-          <div style={{ display: 'flex', gap: 16 }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: '16px',
+              flexDirection: isMobile ? 'column' : 'row',
+            }}
+          >
             <Form.Item
               name="publicationYear"
               label="שנת הוצאה"
@@ -611,7 +861,13 @@ const Books = () => {
             </Form.Item>
           </div>
 
-          <div style={{ display: 'flex', gap: 16 }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: '16px',
+              flexDirection: isMobile ? 'column' : 'row',
+            }}
+          >
             <Form.Item name="pageCount" label="מספר עמודים" style={{ flex: 1 }}>
               <InputNumber
                 placeholder="הזן מספר עמודים"
@@ -655,9 +911,18 @@ const Books = () => {
           </Form.Item>
 
           {/* Footer */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16 }}>
-            <Button onClick={handleCancel}>ביטול</Button>
-            <Button type="primary" htmlType="submit">
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '16px',
+              flexDirection: isMobile ? 'column' : 'row',
+            }}
+          >
+            <Button onClick={handleCancel} block={isMobile}>
+              ביטול
+            </Button>
+            <Button type="primary" htmlType="submit" block={isMobile}>
               {editingBook ? 'עדכון' : 'הוספה'}
             </Button>
           </div>

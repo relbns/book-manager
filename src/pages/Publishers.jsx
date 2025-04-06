@@ -23,6 +23,7 @@ import {
 } from '@ant-design/icons';
 import styled from 'styled-components';
 import { useAppContext } from '../context/AppContext';
+import ResponsiveFilterContainer from '../components/common/ResponsiveFilterContainer';
 
 const { Title, Text, Link } = Typography;
 const { TextArea } = Input;
@@ -263,7 +264,7 @@ const Publishers = () => {
           </Button>
         </div>
 
-        <FilterContainer>
+        <ResponsiveFilterContainer>
           <Input
             placeholder="חיפוש לפי שם או מיקום"
             prefix={<SearchOutlined />}
@@ -286,7 +287,7 @@ const Publishers = () => {
               ))}
             </Select>
           )}
-        </FilterContainer>
+        </ResponsiveFilterContainer>
 
         <StyledTable
           dataSource={filteredPublishers}

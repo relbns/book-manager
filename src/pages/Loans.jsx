@@ -40,6 +40,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAppContext } from '../context/AppContext';
 import dayjs from 'dayjs';
+import ResponsiveFilterContainer from '../components/common/ResponsiveFilterContainer';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -525,7 +526,7 @@ const Loans = () => {
           <TabPane tab="הוחזרו" key="returned" />
         </Tabs>
 
-        <FilterContainer>
+        <ResponsiveFilterContainer>
           <Input
             placeholder="חיפוש לפי שם ספר או שם שואל"
             prefix={<SearchOutlined />}
@@ -533,7 +534,7 @@ const Loans = () => {
             onChange={(e) => setSearchText(e.target.value)}
             style={{ width: 300 }}
           />
-        </FilterContainer>
+        </ResponsiveFilterContainer>
 
         {activeTab === 'overdue' && overdueLoans === 0 && (
           <Empty
