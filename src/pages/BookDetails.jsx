@@ -40,7 +40,7 @@ import { useAppContext } from '../context/AppContext';
 import dayjs from 'dayjs';
 
 const { Title, Text, Paragraph } = Typography;
-const { TabPane } = Tabs;
+// Removed: const { TabPane } = Tabs;
 const { TextArea } = Input;
 
 const StyledCard = styled(Card)`
@@ -55,6 +55,57 @@ const PlaceholderCover = styled.div`
   align-items: center;
   justify-content: center;
   margin-bottom: 16px;
+`;
+
+const BookDetailsContainer = styled.div`
+  max-width: 100%;
+  overflow-x: hidden;
+  class-name: book-details-page;
+`;
+
+const BookInfoLayout = styled.div`
+  display: flex;
+  flex-direction: row;
+  gap: 24px;
+  flex-wrap: wrap;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+  }
+`;
+
+const CoverContainer = styled.div`
+  flex: 0 0 250px;
+
+  @media (max-width: 768px) {
+    flex: 1 1 auto;
+    margin: 0 auto;
+    max-width: 250px;
+  }
+`;
+
+const DetailsContainer = styled.div`
+  flex: 1 1 400px;
+
+  @media (max-width: 768px) {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+`;
+
+const ResponsiveDescriptions = styled(Descriptions)`
+  @media (max-width: 768px) {
+    .ant-descriptions-view {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    th.ant-descriptions-item-label,
+    td.ant-descriptions-item-content {
+      font-size: 14px;
+      padding: 8px 6px;
+    }
+  }
 `;
 
 const BookDetails = () => {
@@ -209,25 +260,35 @@ const BookDetails = () => {
     return dayjs(dateString).format('DD/MM/YYYY');
   };
 
+  const breadcrumbItems = book
+    ? [
+        {
+          title: (
+            <Link to="/">
+              <HomeOutlined /> דף הבית
+            </Link>
+          ),
+        },
+        {
+          title: (
+            <Link to="/books">
+              <BookOutlined /> ספרים
+            </Link>
+          ),
+        },
+        {
+          title: book.title,
+        },
+      ]
+    : [];
+
   return (
-    <div>
+    <BookDetailsContainer>
       {book && (
         <>
-          <Breadcrumb style={{ marginBottom: 16 }}>
-            <Breadcrumb.Item>
-              <Link to="/">
-                <HomeOutlined /> דף הבית
-              </Link>
-            </Breadcrumb.Item>
-            <Breadcrumb.Item>
-              <Link to="/books">
-                <BookOutlined /> ספרים
-              </Link>
-            </Breadcrumb.Item>
-            <Breadcrumb.Item>{book.title}</Breadcrumb.Item>
-          </Breadcrumb>
+          <Breadcrumb style={{ marginBottom: 16 }} items={breadcrumbItems} />
 
-          <StyledCard>
+          {/* <StyledCard>
             <div
               style={{
                 display: 'flex',
@@ -294,10 +355,14 @@ const BookDetails = () => {
                     </div>
                   )}
 
-                  {activeLoans.length > 0 ? (
+                  {book.isLoaned ? (
                     <Alert
                       message="הספר מושאל"
-                      description={`הספר מושאל ל${activeLoans[0].borrowerName}`}
+                      description={
+                        activeLoans.length > 0
+                          ? `הספר מושאל ל${activeLoans[0].borrowerName}`
+                          : 'הספר מסומן כמושאל'
+                      }
                       type="warning"
                       showIcon
                     />
@@ -319,6 +384,27 @@ const BookDetails = () => {
                       <UserOutlined /> {getAuthorName(book.author)}
                     </Link>
                   </Descriptions.Item>
+
+                  {book.series && (
+                    <Descriptions.Item label="סדרה">
+                      {book.series}
+                      {book.volumeInSeries && ` (כרך ${book.volumeInSeries}`}
+                      {book.totalVolumesInSeries &&
+                        ` מתוך ${book.totalVolumesInSeries})`}
+                    </Descriptions.Item>
+                  )}
+
+                  {book.part && (
+                    <Descriptions.Item label="חלק">
+                      {book.part}
+                    </Descriptions.Item>
+                  )}
+
+                  {book.classification && (
+                    <Descriptions.Item label="סיווג">
+                      {book.classification}
+                    </Descriptions.Item>
+                  )}
 
                   {book.publisher && (
                     <Descriptions.Item label="הוצאה לאור">
@@ -370,6 +456,16 @@ const BookDetails = () => {
                     </Descriptions.Item>
                   )}
 
+                  {book.isLoaned !== undefined && (
+                    <Descriptions.Item label="סטטוס השאלה">
+                      {book.isLoaned ? (
+                        <Tag color="red">מושאל</Tag>
+                      ) : (
+                        <Tag color="green">זמין</Tag>
+                      )}
+                    </Descriptions.Item>
+                  )}
+
                   {book.categories && book.categories.length > 0 && (
                     <Descriptions.Item label="קטגוריות">
                       <Space wrap>
@@ -391,109 +487,248 @@ const BookDetails = () => {
                 )}
               </div>
             </div>
+          </StyledCard> */}
+
+          <StyledCard>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                marginBottom: 24,
+                flexWrap: 'wrap',
+              }}
+            >
+              <Title level={2} style={{ marginBottom: 12 }}>
+                {book.title}
+              </Title>
+              <Space wrap style={{ marginBottom: 12 }}>
+                <Button
+                  type="primary"
+                  icon={<ExportOutlined />}
+                  onClick={showLoanModal}
+                  disabled={activeLoans.length > 0 || book.isLoaned}
+                >
+                  השאל ספר
+                </Button>
+                <Button icon={<EditOutlined />} onClick={handleEdit}>
+                  עריכה
+                </Button>
+                <Popconfirm
+                  title="האם אתה בטוח שברצונך למחוק ספר זה?"
+                  onConfirm={handleDelete}
+                  okText="כן"
+                  cancelText="לא"
+                >
+                  <Button icon={<DeleteOutlined />} danger>
+                    מחיקה
+                  </Button>
+                </Popconfirm>
+              </Space>
+            </div>
+
+            <BookInfoLayout>
+              <CoverContainer>
+                {book.coverImage ? (
+                  <img
+                    src={book.coverImage}
+                    alt={book.title}
+                    style={{
+                      width: '100%',
+                      maxHeight: 300,
+                      objectFit: 'contain',
+                    }}
+                  />
+                ) : (
+                  <PlaceholderCover>
+                    <BookOutlined style={{ fontSize: 64, opacity: 0.5 }} />
+                  </PlaceholderCover>
+                )}
+
+                <div>
+                  {book.rating && (
+                    <div style={{ textAlign: 'center', margin: '16px 0' }}>
+                      <Rate disabled defaultValue={book.rating} />
+                    </div>
+                  )}
+
+                  {/* Here's where you should add your updated alert code */}
+                  {book.isLoaned ? (
+                    <Alert
+                      message="הספר מושאל"
+                      description={
+                        activeLoans.length > 0
+                          ? `הספר מושאל ל${activeLoans[0].borrowerName}`
+                          : 'הספר מסומן כמושאל'
+                      }
+                      type="warning"
+                      showIcon
+                    />
+                  ) : (
+                    <Alert
+                      message="הספר זמין"
+                      description="הספר אינו מושאל כרגע"
+                      type="success"
+                      showIcon
+                    />
+                  )}
+                </div>
+              </CoverContainer>
+
+              <DetailsContainer>
+                <ResponsiveDescriptions bordered column={1} size="middle">
+                  <Descriptions.Item label="מחבר">
+                    <Link to={`/authors?filter=${book.author}`}>
+                      <UserOutlined /> {getAuthorName(book.author)}
+                    </Link>
+                  </Descriptions.Item>
+
+                  {book.series && (
+                    <Descriptions.Item label="סדרה">
+                      {book.series}
+                      {book.volumeInSeries && ` (כרך ${book.volumeInSeries}`}
+                      {book.totalVolumesInSeries &&
+                        ` מתוך ${book.totalVolumesInSeries})`}
+                    </Descriptions.Item>
+                  )}
+
+                  {book.part && (
+                    <Descriptions.Item label="חלק">
+                      {book.part}
+                    </Descriptions.Item>
+                  )}
+
+                  {book.classification && (
+                    <Descriptions.Item label="סיווג">
+                      {book.classification}
+                    </Descriptions.Item>
+                  )}
+
+                  {book.publisher && (
+                    <Descriptions.Item label="הוצאה לאור">
+                      <Link to={`/publishers?filter=${book.publisher}`}>
+                        {getPublisherName(book.publisher)}
+                      </Link>
+                    </Descriptions.Item>
+                  )}
+
+                  {/* Rest of your descriptions items */}
+                </ResponsiveDescriptions>
+
+                {book.description && (
+                  <div style={{ marginTop: 24 }}>
+                    <Title level={4}>תקציר</Title>
+                    <Paragraph>{book.description}</Paragraph>
+                  </div>
+                )}
+              </DetailsContainer>
+            </BookInfoLayout>
           </StyledCard>
 
           <StyledCard>
-            <Tabs defaultActiveKey="loans">
-              <TabPane
-                tab={
-                  <span>
-                    <HistoryOutlined /> היסטוריית השאלות
-                  </span>
-                }
-                key="loans"
-              >
-                {bookLoans.length > 0 ? (
-                  <List
-                    dataSource={bookLoans.sort(
-                      (a, b) => new Date(b.loanDate) - new Date(a.loanDate)
-                    )}
-                    renderItem={(loan) => (
-                      <List.Item
-                        actions={[
-                          loan.status === 'active' && (
-                            <Popconfirm
-                              title="האם להחזיר את הספר?"
-                              onConfirm={() => handleReturnBook(loan.id)}
-                              okText="כן"
-                              cancelText="לא"
-                              key="return-action"
-                            >
-                              <Button type="primary" size="small">
-                                <ImportOutlined /> החזר ספר
-                              </Button>
-                            </Popconfirm>
-                          ),
-                        ].filter(Boolean)}
-                      >
-                        <List.Item.Meta
-                          avatar={
-                            <Badge
-                              status={
-                                loan.status === 'active'
-                                  ? dayjs(loan.dueDate).isBefore(dayjs())
-                                    ? 'error'
-                                    : 'processing'
-                                  : 'default'
+            <Tabs
+              defaultActiveKey="loans"
+              items={[
+                {
+                  key: 'loans',
+                  label: (
+                    <span>
+                      <HistoryOutlined /> היסטוריית השאלות
+                    </span>
+                  ),
+                  children:
+                    bookLoans.length > 0 ? (
+                      <List
+                        dataSource={bookLoans.sort(
+                          (a, b) => new Date(b.loanDate) - new Date(a.loanDate)
+                        )}
+                        renderItem={(loan) => (
+                          <List.Item
+                            actions={[
+                              loan.status === 'active' && (
+                                <Popconfirm
+                                  title="האם להחזיר את הספר?"
+                                  onConfirm={() => handleReturnBook(loan.id)}
+                                  okText="כן"
+                                  cancelText="לא"
+                                  key="return-action"
+                                >
+                                  <Button type="primary" size="small">
+                                    <ImportOutlined /> החזר ספר
+                                  </Button>
+                                </Popconfirm>
+                              ),
+                            ].filter(Boolean)}
+                          >
+                            <List.Item.Meta
+                              avatar={
+                                <Badge
+                                  status={
+                                    loan.status === 'active'
+                                      ? dayjs(loan.dueDate).isBefore(dayjs())
+                                        ? 'error'
+                                        : 'processing'
+                                      : 'default'
+                                  }
+                                >
+                                  <Avatar icon={<UserOutlined />} />
+                                </Badge>
                               }
-                            >
-                              <Avatar icon={<UserOutlined />} />
-                            </Badge>
-                          }
-                          title={loan.borrowerName}
-                          description={
-                            <>
-                              <Text>
-                                <CalendarOutlined /> הושאל ב:{' '}
-                                {formatDate(loan.loanDate)}
-                              </Text>
-                              <br />
-                              <Text>
-                                <CalendarOutlined /> תאריך יעד להחזרה:{' '}
-                                {formatDate(loan.dueDate)}
-                              </Text>
-                              {loan.returnDate && (
+                              title={loan.borrowerName}
+                              description={
                                 <>
+                                  <Text>
+                                    <CalendarOutlined /> הושאל ב:{' '}
+                                    {formatDate(loan.loanDate)}
+                                  </Text>
                                   <br />
                                   <Text>
-                                    <CalendarOutlined /> הוחזר ב:{' '}
-                                    {formatDate(loan.returnDate)}
+                                    <CalendarOutlined /> תאריך יעד להחזרה:{' '}
+                                    {formatDate(loan.dueDate)}
                                   </Text>
+                                  {loan.returnDate && (
+                                    <>
+                                      <br />
+                                      <Text>
+                                        <CalendarOutlined /> הוחזר ב:{' '}
+                                        {formatDate(loan.returnDate)}
+                                      </Text>
+                                    </>
+                                  )}
                                 </>
-                              )}
-                            </>
-                          }
-                        />
-                        <div>
-                          <Tag
-                            color={loan.status === 'active' ? 'blue' : 'green'}
-                          >
-                            {loan.status === 'active' ? 'פעיל' : 'הוחזר'}
-                          </Tag>
-                        </div>
-                      </List.Item>
-                    )}
-                  />
-                ) : (
-                  <Empty description="אין היסטוריית השאלות לספר זה" />
-                )}
-              </TabPane>
-
-              <TabPane
-                tab={
-                  <span>
-                    <ReadOutlined /> הערות
-                  </span>
-                }
-                key="notes"
-              >
-                {book.notes ? (
-                  <Paragraph>{book.notes}</Paragraph>
-                ) : (
-                  <Empty description="אין הערות לספר זה" />
-                )}
-              </TabPane>
-            </Tabs>
+                              }
+                            />
+                            <div>
+                              <Tag
+                                color={
+                                  loan.status === 'active' ? 'blue' : 'green'
+                                }
+                              >
+                                {loan.status === 'active' ? 'פעיל' : 'הוחזר'}
+                              </Tag>
+                            </div>
+                          </List.Item>
+                        )}
+                      />
+                    ) : (
+                      <Empty description="אין היסטוריית השאלות לספר זה" />
+                    ),
+                },
+                {
+                  key: 'notes',
+                  label: (
+                    <span>
+                      <ReadOutlined /> הערות
+                    </span>
+                  ),
+                  children: book.notes ? (
+                    <Paragraph>{book.notes}</Paragraph>
+                  ) : (
+                    <Empty description="אין הערות לספר זה" />
+                  ),
+                },
+              ]}
+            />
           </StyledCard>
 
           {/* Loan Form Modal */}
@@ -563,7 +798,7 @@ const BookDetails = () => {
           </Modal>
         </>
       )}
-    </div>
+    </BookDetailsContainer>
   );
 };
 

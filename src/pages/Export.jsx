@@ -1,3 +1,4 @@
+// src/pages/Export.jsx - Updated with JSON export and authors list export
 import React, { useState, useEffect } from 'react';
 import {
   Card,
@@ -12,6 +13,8 @@ import {
   DatePicker,
   Form,
   message,
+  Radio,
+  Divider,
 } from 'antd';
 import {
   ExportOutlined,
@@ -19,6 +22,11 @@ import {
   FilterOutlined,
   FileTextOutlined,
   WarningOutlined,
+  UserOutlined,
+  BookOutlined,
+  FileOutlined,
+  TagsOutlined,
+  HomeOutlined,
 } from '@ant-design/icons';
 import styled from 'styled-components';
 import { useAppContext } from '../context/AppContext';
@@ -54,6 +62,7 @@ const Export = () => {
 
   // State
   const [exportType, setExportType] = useState('books');
+  const [exportFormat, setExportFormat] = useState('csv');
   const [exportData, setExportData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [selectedFields, setSelectedFields] = useState([]);
@@ -72,6 +81,13 @@ const Export = () => {
           'id',
           'title',
           'author',
+          'series',
+          'volumeInSeries',
+          'part',
+          'totalVolumesInSeries',
+          'classification',
+          'notes',
+          'isLoaned',
           'publisher',
           'isbn',
           'publicationYear',
@@ -103,6 +119,15 @@ const Export = () => {
           'returnDate',
           'status',
         ];
+        break;
+      case 'authorsForImport':
+        // Special case: export authors in a format optimized for book imports
+        data = authors.map((author) => ({
+          id: author.id,
+          name: author.name,
+          // Include any other fields that might be helpful for reference
+        }));
+        fields = ['id', 'name'];
         break;
       default:
         data = [];
@@ -139,12 +164,25 @@ const Export = () => {
         });
       }
 
+      // Convert data format if needed
+      if (exportType === 'books' && exportFormat === 'csv') {
+        dataToExport = csvService.convertCollectionFormat(
+          dataToExport,
+          'books',
+          'csv'
+        );
+      }
+
       // Format filename with date
       const date = dayjs().format('YYYY-MM-DD');
-      const fileName = `${exportType}_${date}.csv`;
+      const fileName = `${exportType}_${date}.${exportFormat}`;
 
-      // Export to CSV
-      csvService.exportToCSV(dataToExport, fileName);
+      // Export based on selected format
+      if (exportFormat === 'json') {
+        csvService.exportToJSON(dataToExport, fileName);
+      } else {
+        csvService.exportToCSV(dataToExport, fileName);
+      }
 
       message.success(`יוצאו ${dataToExport.length} רשומות בהצלחה`);
     } catch (err) {
@@ -300,6 +338,64 @@ const Export = () => {
     }
   };
 
+  // Get export type options with icons
+  const getExportTypeOptions = () => [
+    {
+      label: (
+        <Space>
+          <BookOutlined />
+          <span>ספרים</span>
+        </Space>
+      ),
+      value: 'books',
+    },
+    {
+      label: (
+        <Space>
+          <UserOutlined />
+          <span>סופרים</span>
+        </Space>
+      ),
+      value: 'authors',
+    },
+    {
+      label: (
+        <Space>
+          <UserOutlined />
+          <span>רשימת סופרים לייבוא</span>
+        </Space>
+      ),
+      value: 'authorsForImport',
+    },
+    {
+      label: (
+        <Space>
+          <TagsOutlined />
+          <span>קטגוריות</span>
+        </Space>
+      ),
+      value: 'categories',
+    },
+    {
+      label: (
+        <Space>
+          <HomeOutlined />
+          <span>הוצאות לאור</span>
+        </Space>
+      ),
+      value: 'publishers',
+    },
+    {
+      label: (
+        <Space>
+          <FileOutlined />
+          <span>השאלות</span>
+        </Space>
+      ),
+      value: 'loans',
+    },
+  ];
+
   return (
     <ExportContainer>
       <StyledCard>
@@ -310,13 +406,19 @@ const Export = () => {
             value={exportType}
             onChange={setExportType}
             style={{ width: '100%', marginBottom: 16 }}
-          >
-            <Option value="books">ספרים</Option>
-            <Option value="authors">סופרים</Option>
-            <Option value="categories">קטגוריות</Option>
-            <Option value="publishers">הוצאות לאור</Option>
-            <Option value="loans">השאלות</Option>
-          </Select>
+            options={getExportTypeOptions()}
+          />
+
+          <div style={{ marginBottom: 16 }}>
+            <Title level={5}>פורמט ייצוא</Title>
+            <Radio.Group
+              value={exportFormat}
+              onChange={(e) => setExportFormat(e.target.value)}
+            >
+              <Radio.Button value="csv">CSV</Radio.Button>
+              <Radio.Button value="json">JSON</Radio.Button>
+            </Radio.Group>
+          </div>
 
           <Card
             title={
@@ -419,7 +521,7 @@ const Export = () => {
               }
               size="large"
             >
-              ייצא ל-CSV
+              ייצא ל-{exportFormat.toUpperCase()}
             </Button>
           </div>
 
@@ -427,6 +529,16 @@ const Export = () => {
             <Alert
               message="אין נתונים לייצוא"
               description="אנא נסה לשנות את הסינון או לבחור סוג נתונים אחר."
+              type="info"
+              showIcon
+              style={{ marginTop: 16 }}
+            />
+          )}
+
+          {exportType === 'authorsForImport' && (
+            <Alert
+              message="רשימת סופרים לייבוא"
+              description="רשימה זו מכילה את מזהי הסופרים ושמותיהם, וניתן להשתמש בה כדי לייבא ספרים עם מזהי סופרים תקינים."
               type="info"
               showIcon
               style={{ marginTop: 16 }}

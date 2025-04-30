@@ -1,4 +1,4 @@
-// src/pages/Import.jsx
+// src/pages/Import.jsx - Updated to support new book attributes
 import React, { useState } from 'react';
 import {
   Card,
@@ -13,12 +13,15 @@ import {
   Divider,
   Space,
   Empty,
+  Radio,
 } from 'antd';
 import {
   InboxOutlined,
   FileTextOutlined,
   CheckCircleOutlined,
   LoadingOutlined,
+  FileExcelOutlined,
+  FileOutlined,
 } from '@ant-design/icons';
 import styled from 'styled-components';
 import { useAppContext } from '../context/AppContext';
@@ -50,10 +53,12 @@ const Import = () => {
     createCategoryModel,
     createPublisherModel,
     createLoanModel,
+    authors, // Added to reference authors when importing books
   } = useAppContext();
 
   // State
   const [importType, setImportType] = useState('books');
+  const [importFormat, setImportFormat] = useState('csv');
   const [currentStep, setCurrentStep] = useState(0);
   const [file, setFile] = useState(null);
   const [fileData, setFileData] = useState([]);
@@ -83,10 +88,17 @@ const Import = () => {
   const handleFileUpload = async (info) => {
     const { file } = info;
 
-    // Only accept .csv files
-    if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
-      message.error('רק קבצי CSV נתמכים');
-      return;
+    // Check file type based on selected import format
+    if (importFormat === 'csv') {
+      if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+        message.error('רק קבצי CSV נתמכים');
+        return;
+      }
+    } else if (importFormat === 'json') {
+      if (file.type !== 'application/json' && !file.name.endsWith('.json')) {
+        message.error('רק קבצי JSON נתמכים');
+        return;
+      }
     }
 
     setFile(file);
@@ -96,10 +108,28 @@ const Import = () => {
       setLoading(true);
       setError(null);
 
-      // Parse CSV file
-      const data = await csvService.importFromCSV(file, importType);
-      setFileData(data);
+      let data;
+      if (importFormat === 'json') {
+        // Read and parse JSON file
+        const reader = new FileReader();
+        data = await new Promise((resolve, reject) => {
+          reader.onload = (e) => {
+            try {
+              const jsonData = JSON.parse(e.target.result);
+              resolve(Array.isArray(jsonData) ? jsonData : [jsonData]);
+            } catch (err) {
+              reject(new Error('פורמט JSON לא תקין'));
+            }
+          };
+          reader.onerror = () => reject(new Error('שגיאה בקריאת הקובץ'));
+          reader.readAsText(file);
+        });
+      } else {
+        // Parse CSV file
+        data = await csvService.importFromCSV(file, importType);
+      }
 
+      setFileData(data);
       message.success(`נטענו ${data.length} רשומות בהצלחה`);
     } catch (err) {
       setError(err.message);
@@ -107,6 +137,50 @@ const Import = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Process book data before import
+  const processBookData = (bookData) => {
+    // Handle author by ID or name
+    if (bookData.author && typeof bookData.author === 'string') {
+      // Check if the author field contains an ID or a name
+      const authorById = authors.find((a) => a.id === bookData.author);
+      if (!authorById) {
+        // Check if it's a name and try to find author by name
+        const authorByName = authors.find(
+          (a) => a.name.toLowerCase() === bookData.author.toLowerCase()
+        );
+        if (authorByName) {
+          bookData.author = authorByName.id;
+        }
+      }
+    }
+
+    // Convert isLoaned from string to boolean if necessary
+    if ('isLoaned' in bookData && typeof bookData.isLoaned === 'string') {
+      const loanedValue = bookData.isLoaned.toLowerCase();
+      bookData.isLoaned = ['כן', 'yes', 'true', '1'].includes(loanedValue);
+    }
+
+    // Convert numeric string fields to numbers
+    if (
+      'volumeInSeries' in bookData &&
+      bookData.volumeInSeries &&
+      typeof bookData.volumeInSeries === 'string'
+    ) {
+      bookData.volumeInSeries = parseInt(bookData.volumeInSeries) || null;
+    }
+
+    if (
+      'totalVolumesInSeries' in bookData &&
+      bookData.totalVolumesInSeries &&
+      typeof bookData.totalVolumesInSeries === 'string'
+    ) {
+      bookData.totalVolumesInSeries =
+        parseInt(bookData.totalVolumesInSeries) || null;
+    }
+
+    return bookData;
   };
 
   // Handle import
@@ -131,7 +205,14 @@ const Import = () => {
       const results = [];
 
       for (const item of fileData) {
-        const model = modelCreator(item);
+        let processedItem = item;
+
+        // Special processing for books
+        if (importType === 'books') {
+          processedItem = processBookData(item);
+        }
+
+        const model = modelCreator(processedItem);
         await addFunction(model);
         results.push(model);
       }
@@ -164,9 +245,9 @@ const Import = () => {
   const getSampleHeaders = () => {
     switch (importType) {
       case 'books':
-        return 'title,author,publisher,isbn,publicationYear,language,categories';
+        return 'ID,שם הספר,מחבר,סדרה,כרך בסדרה,חלק,סך כרכים בסדרה,סיווג,הערות,הושאל';
       case 'authors':
-        return 'name,biography,birthYear,nationality';
+        return 'id,name,biography,birthYear,nationality';
       case 'categories':
         return 'name,description,color';
       case 'publishers':
@@ -213,45 +294,99 @@ const Import = () => {
               <Option value="loans">השאלות</Option>
             </Select>
 
+            <div style={{ marginBottom: 16 }}>
+              <Title level={5}>פורמט ייבוא</Title>
+              <Radio.Group
+                value={importFormat}
+                onChange={(e) => setImportFormat(e.target.value)}
+              >
+                <Radio.Button value="csv">CSV</Radio.Button>
+                <Radio.Button value="json">JSON</Radio.Button>
+              </Radio.Group>
+            </div>
+
             <Alert
               message="מבנה הקובץ הנדרש"
               description={
-                <>
-                  <Text>יש לייבא קובץ CSV עם כותרות עמודות. לדוגמה:</Text>
-                  <div
-                    style={{
-                      background: '#f5f5f5',
-                      padding: 8,
-                      borderRadius: 4,
-                      marginTop: 8,
-                      direction: 'ltr',
-                      fontFamily: 'monospace',
-                    }}
-                  >
-                    {getSampleHeaders()}
-                  </div>
-                </>
+                importFormat === 'csv' ? (
+                  <>
+                    <Text>יש לייבא קובץ CSV עם כותרות עמודות. לדוגמה:</Text>
+                    <div
+                      style={{
+                        background: '#f5f5f5',
+                        padding: 8,
+                        borderRadius: 4,
+                        marginTop: 8,
+                        direction: 'ltr',
+                        fontFamily: 'monospace',
+                      }}
+                    >
+                      {getSampleHeaders()}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Text>יש לייבא קובץ JSON המכיל מערך של אובייקטים.</Text>
+                    <div
+                      style={{
+                        background: '#f5f5f5',
+                        padding: 8,
+                        borderRadius: 4,
+                        marginTop: 8,
+                        direction: 'ltr',
+                        fontFamily: 'monospace',
+                      }}
+                    >
+                      [{'\n'}
+                      {
+                        '  { "title": "שם הספר", "author": "123456", "series": "שם הסדרה", ... },\n'
+                      }
+                      {'  { "title": "ספר אחר", "author": "654321", ... }\n'}
+                      {']'}
+                    </div>
+                  </>
+                )
               }
               type="info"
               showIcon
               style={{ marginBottom: 16 }}
             />
 
+            {importType === 'books' && (
+              <Alert
+                message="שים לב לשדה 'מחבר' (author)"
+                description={
+                  <>
+                    <Text>ניתן להשתמש במזהה (ID) של סופר או בשמו.</Text>
+                    <Text>מומלץ לייצא את רשימת הסופרים תחילה לייחוס.</Text>
+                  </>
+                }
+                type="warning"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+            )}
+
             <Dragger
               name="file"
               multiple={false}
               beforeUpload={() => false}
               onChange={handleFileUpload}
-              accept=".csv"
+              accept={importFormat === 'csv' ? '.csv' : '.json'}
             >
               <p className="ant-upload-drag-icon">
-                <InboxOutlined />
+                {importFormat === 'csv' ? (
+                  <FileExcelOutlined />
+                ) : (
+                  <FileOutlined />
+                )}
               </p>
               <p className="ant-upload-text">
-                גרור לכאן קובץ CSV או לחץ לבחירת קובץ
+                גרור לכאן קובץ {importFormat.toUpperCase()} או לחץ לבחירת קובץ
               </p>
               <p className="ant-upload-hint">
-                שים לב: יש לייבא קובץ CSV בלבד, עם כותרות עמודות תואמות
+                שים לב: יש לייבא קובץ {importFormat.toUpperCase()} בלבד, בפורמט
+                המתאים
               </p>
             </Dragger>
           </Space>

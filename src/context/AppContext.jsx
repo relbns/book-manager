@@ -1,6 +1,15 @@
 // src/context/AppContext.jsx
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import gistService from '../services/gistService';
+import dayjs from 'dayjs';
+import {
+  AuthService,
+  BookService,
+  AuthorService,
+  CategoryService,
+  PublisherService,
+  LoanService,
+  StatisticsService,
+} from '../services/appwriteService';
 
 // Create context
 const AppContext = createContext();
@@ -10,10 +19,15 @@ const createBookModel = (data = {}) => {
   return {
     id: data.id || Date.now().toString(),
     title: data.title || '',
-    author: data.author || '', // ID reference to authors collection
-    publisher: data.publisher || '', // ID reference to publishers collection
+    author: data.author || '',
+    series: data.series || '',
+    volumeInSeries: data.volumeInSeries || null,
+    part: data.part || '',
+    totalVolumesInSeries: data.totalVolumesInSeries || null,
+    classification: data.classification || '',
+    publisher: data.publisher || '',
     isbn: data.isbn || '',
-    categories: data.categories || [], // Array of category IDs
+    categories: data.categories || [],
     publicationYear: data.publicationYear || null,
     language: data.language || 'Hebrew',
     pageCount: data.pageCount || null,
@@ -24,6 +38,7 @@ const createBookModel = (data = {}) => {
     acquisitionMethod: data.acquisitionMethod || '',
     rating: data.rating || null,
     notes: data.notes || '',
+    isLoaned: data.isLoaned || false,
     createdAt: data.createdAt || new Date().toISOString(),
     updatedAt: data.updatedAt || new Date().toISOString(),
   };
@@ -33,13 +48,13 @@ const createBookModel = (data = {}) => {
 const createLoanModel = (data = {}) => {
   return {
     id: data.id || Date.now().toString(),
-    bookId: data.bookId || '', // ID reference to books collection
+    bookId: data.bookId || '',
     borrowerName: data.borrowerName || '',
     borrowerContact: data.borrowerContact || '',
-    loanDate: data.loanDate || new Date().toISOString(),
-    dueDate: data.dueDate || '',
-    returnDate: data.returnDate || null, // Null when not returned
-    status: data.status || 'active', // active, returned, overdue
+    loanDate: data.loanDate ? dayjs(data.loanDate) : dayjs(),
+    dueDate: data.dueDate ? dayjs(data.dueDate) : dayjs().add(14, 'day'),
+    returnDate: data.returnDate ? dayjs(data.returnDate) : null,
+    status: data.status || 'active',
     notes: data.notes || '',
   };
 };
@@ -51,7 +66,7 @@ const createCategoryModel = (data = {}) => {
     name: data.name || '',
     description: data.description || '',
     color: data.color || '#1890ff',
-    parent: data.parent || null, // For nested categories
+    parent: data.parent || null,
   };
 };
 
@@ -83,8 +98,9 @@ const createPublisherModel = (data = {}) => {
 export const AppProvider = ({ children }) => {
   const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [gistId, setGistId] = useState(null);
+  const [user, setUser] = useState(null);
   const [theme, setTheme] = useState('light');
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Data collections
   const [books, setBooks] = useState([]);
@@ -97,41 +113,34 @@ export const AppProvider = ({ children }) => {
   // Check authentication status on mount
   useEffect(() => {
     const checkAuth = async () => {
-      const isAuth = gistService.isAuthenticated();
-      setAuthenticated(isAuth);
+      try {
+        const isAuth = await AuthService.isAuthenticated();
+        setAuthenticated(isAuth);
 
-      if (isAuth) {
-        // Get gistId from session storage or find existing gist
-        let storedGistId = sessionStorage.getItem('bookManagerGistId');
-
-        if (!storedGistId) {
-          try {
-            storedGistId = await gistService.findOrCreateAppGist();
-            sessionStorage.setItem('bookManagerGistId', storedGistId);
-          } catch (err) {
-            console.error('Failed to find or create gist:', err);
-            gistService.removeToken();
-            setAuthenticated(false);
-          }
+        if (isAuth) {
+          // Get current user
+          const currentUser = await AuthService.getCurrentUser();
+          setUser(currentUser);
+          setIsAdmin(currentUser?.isAdmin || false);
         }
-
-        setGistId(storedGistId);
+      } catch (error) {
+        console.error('Auth check error:', error);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
     checkAuth();
   }, []);
 
-  // Load data if authenticated and gistId is available
+  // Load data if authenticated
   useEffect(() => {
-    if (authenticated && gistId) {
+    if (authenticated) {
       loadAllCollections();
     }
-  }, [authenticated, gistId]);
+  }, [authenticated]);
 
-  // Load all collections from the gist
+  // Load all collections from Appwrite
   const loadAllCollections = async () => {
     setLoading(true);
     try {
@@ -143,12 +152,12 @@ export const AppProvider = ({ children }) => {
         publishersData,
         statisticsData,
       ] = await Promise.all([
-        gistService.getCollection(gistId, 'books'),
-        gistService.getCollection(gistId, 'loans'),
-        gistService.getCollection(gistId, 'categories'),
-        gistService.getCollection(gistId, 'authors'),
-        gistService.getCollection(gistId, 'publishers'),
-        gistService.getCollection(gistId, 'statistics'),
+        BookService.getBooks(),
+        LoanService.getLoans(),
+        CategoryService.getCategories(),
+        AuthorService.getAuthors(),
+        PublisherService.getPublishers(),
+        StatisticsService.getStatistics(),
       ]);
 
       setBooks(booksData);
@@ -156,7 +165,7 @@ export const AppProvider = ({ children }) => {
       setCategories(categoriesData);
       setAuthors(authorsData);
       setPublishers(publishersData);
-      setStatistics(statisticsData.length > 0 ? statisticsData[0] : {});
+      setStatistics(statisticsData || {});
     } catch (err) {
       console.error('Error loading collections:', err);
     } finally {
@@ -164,173 +173,388 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // Save a specific collection
-  const saveCollection = async (collectionName, data) => {
-    if (!gistId) return;
-
-    try {
-      await gistService.updateCollection(gistId, collectionName, data);
-      return true;
-    } catch (err) {
-      console.error(`Error saving ${collectionName}:`, err);
-      return false;
-    }
-  };
-
   // CRUD operations for books
   const addBook = async (bookData) => {
     const newBook = createBookModel(bookData);
-    const updatedBooks = [...books, newBook];
-    setBooks(updatedBooks);
-    await saveCollection('books', updatedBooks);
-    return newBook;
+    try {
+      const response = await BookService.createBook(newBook);
+      const updatedBooks = [...books, response];
+      setBooks(updatedBooks);
+      return response;
+    } catch (error) {
+      console.error('Error adding book:', error);
+      throw error;
+    }
   };
 
   const updateBook = async (id, bookData) => {
-    const updatedBooks = books.map((book) =>
-      book.id === id
-        ? { ...book, ...bookData, updatedAt: new Date().toISOString() }
-        : book
-    );
-    setBooks(updatedBooks);
-    await saveCollection('books', updatedBooks);
-    return updatedBooks.find((book) => book.id === id);
+    try {
+      const response = await BookService.updateBook(id, {
+        ...bookData,
+        updatedAt: new Date().toISOString(),
+      });
+
+      const updatedBooks = books.map((book) =>
+        book.id === id || book.$id === id ? response : book
+      );
+
+      setBooks(updatedBooks);
+      return response;
+    } catch (error) {
+      console.error('Error updating book:', error);
+      throw error;
+    }
   };
 
   const deleteBook = async (id) => {
-    const updatedBooks = books.filter((book) => book.id !== id);
-    setBooks(updatedBooks);
-    await saveCollection('books', updatedBooks);
-    return true;
+    try {
+      await BookService.deleteBook(id);
+      const updatedBooks = books.filter(
+        (book) => book.id !== id && book.$id !== id
+      );
+      setBooks(updatedBooks);
+      return true;
+    } catch (error) {
+      console.error('Error deleting book:', error);
+      throw error;
+    }
   };
 
   // CRUD operations for loans
   const addLoan = async (loanData) => {
     const newLoan = createLoanModel(loanData);
-    const updatedLoans = [...loans, newLoan];
-    setLoans(updatedLoans);
-    await saveCollection('loans', updatedLoans);
-    return newLoan;
+    try {
+      // Convert dayjs objects to ISO strings for storage
+      const loanForStorage = {
+        ...newLoan,
+        loanDate: newLoan.loanDate.toISOString(),
+        dueDate: newLoan.dueDate.toISOString(),
+        returnDate: newLoan.returnDate
+          ? newLoan.returnDate.toISOString()
+          : null,
+      };
+
+      const response = await LoanService.createLoan(loanForStorage);
+
+      // If the loan was created successfully, update the book's isLoaned status
+      if (response) {
+        const book = books.find(
+          (b) => b.id === newLoan.bookId || b.$id === newLoan.bookId
+        );
+        if (book) {
+          await updateBook(book.id || book.$id, {
+            ...book,
+            isLoaned: true,
+          });
+        }
+      }
+
+      // Convert back to dayjs for the UI
+      const displayLoan = {
+        ...response,
+        loanDate: dayjs(response.loanDate),
+        dueDate: dayjs(response.dueDate),
+        returnDate: response.returnDate ? dayjs(response.returnDate) : null,
+      };
+
+      const updatedLoans = [...loans, displayLoan];
+      setLoans(updatedLoans);
+      return displayLoan;
+    } catch (error) {
+      console.error('Error adding loan:', error);
+      throw error;
+    }
   };
 
   const updateLoan = async (id, loanData) => {
-    const updatedLoans = loans.map((loan) =>
-      loan.id === id ? { ...loan, ...loanData } : loan
-    );
-    setLoans(updatedLoans);
-    await saveCollection('loans', updatedLoans);
-    return updatedLoans.find((loan) => loan.id === id);
+    try {
+      // Convert dayjs objects to ISO strings for storage
+      const loanForStorage = {
+        ...loanData,
+        loanDate: loanData.loanDate
+          ? typeof loanData.loanDate === 'object'
+            ? loanData.loanDate.toISOString()
+            : loanData.loanDate
+          : null,
+        dueDate: loanData.dueDate
+          ? typeof loanData.dueDate === 'object'
+            ? loanData.dueDate.toISOString()
+            : loanData.dueDate
+          : null,
+        returnDate: loanData.returnDate
+          ? typeof loanData.returnDate === 'object'
+            ? loanData.returnDate.toISOString()
+            : loanData.returnDate
+          : null,
+      };
+
+      const response = await LoanService.updateLoan(id, loanForStorage);
+
+      // If status changed to 'returned', update the book's isLoaned status
+      if (loanData.status === 'returned' && response) {
+        const loan = loans.find((l) => l.id === id || l.$id === id);
+        if (loan) {
+          const book = books.find(
+            (b) => b.id === loan.bookId || b.$id === loan.bookId
+          );
+          if (book) {
+            await updateBook(book.id || book.$id, {
+              ...book,
+              isLoaned: false,
+            });
+          }
+        }
+      }
+
+      // Convert back to dayjs for the UI
+      const displayLoan = {
+        ...response,
+        loanDate: dayjs(response.loanDate),
+        dueDate: dayjs(response.dueDate),
+        returnDate: response.returnDate ? dayjs(response.returnDate) : null,
+      };
+
+      const updatedLoans = loans.map((loan) =>
+        loan.id === id || loan.$id === id ? displayLoan : loan
+      );
+
+      setLoans(updatedLoans);
+      return displayLoan;
+    } catch (error) {
+      console.error('Error updating loan:', error);
+      throw error;
+    }
   };
 
   const deleteLoan = async (id) => {
-    const updatedLoans = loans.filter((loan) => loan.id !== id);
-    setLoans(updatedLoans);
-    await saveCollection('loans', updatedLoans);
-    return true;
+    try {
+      // Find the loan to get the bookId before deletion
+      const loan = loans.find((l) => l.id === id || l.$id === id);
+
+      await LoanService.deleteLoan(id);
+
+      // If the loan was active, update the book's isLoaned status
+      if (loan && loan.status === 'active') {
+        const book = books.find(
+          (b) => b.id === loan.bookId || b.$id === loan.bookId
+        );
+        if (book) {
+          await updateBook(book.id || book.$id, {
+            ...book,
+            isLoaned: false,
+          });
+        }
+      }
+
+      const updatedLoans = loans.filter(
+        (loan) => loan.id !== id && loan.$id !== id
+      );
+      setLoans(updatedLoans);
+      return true;
+    } catch (error) {
+      console.error('Error deleting loan:', error);
+      throw error;
+    }
   };
 
   // CRUD operations for categories
   const addCategory = async (categoryData) => {
     const newCategory = createCategoryModel(categoryData);
-    const updatedCategories = [...categories, newCategory];
-    setCategories(updatedCategories);
-    await saveCollection('categories', updatedCategories);
-    return newCategory;
+    try {
+      const response = await CategoryService.createCategory(newCategory);
+      const updatedCategories = [...categories, response];
+      setCategories(updatedCategories);
+      return response;
+    } catch (error) {
+      console.error('Error adding category:', error);
+      throw error;
+    }
   };
 
   const updateCategory = async (id, categoryData) => {
-    const updatedCategories = categories.map((category) =>
-      category.id === id ? { ...category, ...categoryData } : category
-    );
-    setCategories(updatedCategories);
-    await saveCollection('categories', updatedCategories);
-    return updatedCategories.find((category) => category.id === id);
+    try {
+      const response = await CategoryService.updateCategory(id, categoryData);
+      const updatedCategories = categories.map((category) =>
+        category.id === id || category.$id === id ? response : category
+      );
+      setCategories(updatedCategories);
+      return response;
+    } catch (error) {
+      console.error('Error updating category:', error);
+      throw error;
+    }
   };
 
   const deleteCategory = async (id) => {
-    const updatedCategories = categories.filter(
-      (category) => category.id !== id
-    );
-    setCategories(updatedCategories);
-    await saveCollection('categories', updatedCategories);
-    return true;
+    try {
+      await CategoryService.deleteCategory(id);
+      const updatedCategories = categories.filter(
+        (category) => category.id !== id && category.$id !== id
+      );
+      setCategories(updatedCategories);
+      return true;
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      throw error;
+    }
   };
 
   // CRUD operations for authors
   const addAuthor = async (authorData) => {
     const newAuthor = createAuthorModel(authorData);
-    const updatedAuthors = [...authors, newAuthor];
-    setAuthors(updatedAuthors);
-    await saveCollection('authors', updatedAuthors);
-    return newAuthor;
+    try {
+      const response = await AuthorService.createAuthor(newAuthor);
+      const updatedAuthors = [...authors, response];
+      setAuthors(updatedAuthors);
+      return response;
+    } catch (error) {
+      console.error('Error adding author:', error);
+      throw error;
+    }
   };
 
   const updateAuthor = async (id, authorData) => {
-    const updatedAuthors = authors.map((author) =>
-      author.id === id ? { ...author, ...authorData } : author
-    );
-    setAuthors(updatedAuthors);
-    await saveCollection('authors', updatedAuthors);
-    return updatedAuthors.find((author) => author.id === id);
+    try {
+      const response = await AuthorService.updateAuthor(id, authorData);
+      const updatedAuthors = authors.map((author) =>
+        author.id === id || author.$id === id ? response : author
+      );
+      setAuthors(updatedAuthors);
+      return response;
+    } catch (error) {
+      console.error('Error updating author:', error);
+      throw error;
+    }
   };
 
   const deleteAuthor = async (id) => {
-    const updatedAuthors = authors.filter((author) => author.id !== id);
-    setAuthors(updatedAuthors);
-    await saveCollection('authors', updatedAuthors);
-    return true;
+    try {
+      await AuthorService.deleteAuthor(id);
+      const updatedAuthors = authors.filter(
+        (author) => author.id !== id && author.$id !== id
+      );
+      setAuthors(updatedAuthors);
+      return true;
+    } catch (error) {
+      console.error('Error deleting author:', error);
+      throw error;
+    }
   };
 
   // CRUD operations for publishers
   const addPublisher = async (publisherData) => {
     const newPublisher = createPublisherModel(publisherData);
-    const updatedPublishers = [...publishers, newPublisher];
-    setPublishers(updatedPublishers);
-    await saveCollection('publishers', updatedPublishers);
-    return newPublisher;
+    try {
+      const response = await PublisherService.createPublisher(newPublisher);
+      const updatedPublishers = [...publishers, response];
+      setPublishers(updatedPublishers);
+      return response;
+    } catch (error) {
+      console.error('Error adding publisher:', error);
+      throw error;
+    }
   };
 
   const updatePublisher = async (id, publisherData) => {
-    const updatedPublishers = publishers.map((publisher) =>
-      publisher.id === id ? { ...publisher, ...publisherData } : publisher
-    );
-    setPublishers(updatedPublishers);
-    await saveCollection('publishers', updatedPublishers);
-    return updatedPublishers.find((publisher) => publisher.id === id);
+    try {
+      const response = await PublisherService.updatePublisher(
+        id,
+        publisherData
+      );
+      const updatedPublishers = publishers.map((publisher) =>
+        publisher.id === id || publisher.$id === id ? response : publisher
+      );
+      setPublishers(updatedPublishers);
+      return response;
+    } catch (error) {
+      console.error('Error updating publisher:', error);
+      throw error;
+    }
   };
 
   const deletePublisher = async (id) => {
-    const updatedPublishers = publishers.filter(
-      (publisher) => publisher.id !== id
-    );
-    setPublishers(updatedPublishers);
-    await saveCollection('publishers', updatedPublishers);
-    return true;
+    try {
+      await PublisherService.deletePublisher(id);
+      const updatedPublishers = publishers.filter(
+        (publisher) => publisher.id !== id && publisher.$id !== id
+      );
+      setPublishers(updatedPublishers);
+      return true;
+    } catch (error) {
+      console.error('Error deleting publisher:', error);
+      throw error;
+    }
   };
 
   // Update statistics
   const updateStatistics = async (statsData) => {
-    const updatedStats = {
-      ...statistics,
-      ...statsData,
-      updatedAt: new Date().toISOString(),
-    };
-    setStatistics(updatedStats);
-    await saveCollection('statistics', [updatedStats]);
-    return updatedStats;
+    try {
+      const updatedStats = {
+        ...statistics,
+        ...statsData,
+        updatedAt: new Date().toISOString(),
+      };
+
+      const response = await StatisticsService.updateStatistics(updatedStats);
+      setStatistics(response);
+      return response;
+    } catch (error) {
+      console.error('Error updating statistics:', error);
+      throw error;
+    }
   };
 
-  // Handle login success
-  const handleLoginSuccess = () => {
-    setAuthenticated(true);
+  // Handle login
+  const handleLogin = async (email, password) => {
+    try {
+      setLoading(true);
+      const session = await AuthService.login(email, password);
+      if (session.$id) {
+        const user = await AuthService.getCurrentUser();
+        setUser(user);
+        setIsAdmin(user?.isAdmin || false);
+        setAuthenticated(true);
+        return user;
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle registration
+  const handleRegister = async (email, password, name) => {
+    try {
+      setLoading(true);
+      const user = await AuthService.createAccount(email, password, name);
+      if (user.$id) {
+        // Login after registration
+        await handleLogin(email, password);
+        return user;
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Handle logout
-  const handleLogout = () => {
-    gistService.removeToken();
-    sessionStorage.removeItem('bookManagerGistId');
-    setAuthenticated(false);
-    setGistId(null);
+  const handleLogout = async () => {
+    try {
+      setLoading(true);
+      await AuthService.logout();
+      setAuthenticated(false);
+      setUser(null);
+      setIsAdmin(false);
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Toggle theme
@@ -338,10 +562,26 @@ export const AppProvider = ({ children }) => {
     setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
   };
 
+  // Invite a user (admin only)
+  const inviteUser = async (email, isAdmin = false) => {
+    if (!user?.isAdmin) {
+      throw new Error('Only admins can invite users');
+    }
+
+    try {
+      return await AuthService.inviteUser(email, isAdmin);
+    } catch (error) {
+      console.error('Invite user error:', error);
+      throw error;
+    }
+  };
+
   // Context value
   const contextValue = {
     authenticated,
     loading,
+    user,
+    isAdmin,
     theme,
     books,
     loans,
@@ -365,7 +605,8 @@ export const AppProvider = ({ children }) => {
     updatePublisher,
     deletePublisher,
     updateStatistics,
-    handleLoginSuccess,
+    handleLogin,
+    handleRegister,
     handleLogout,
     toggleTheme,
     refreshData: loadAllCollections,
@@ -374,6 +615,7 @@ export const AppProvider = ({ children }) => {
     createCategoryModel,
     createAuthorModel,
     createPublisherModel,
+    inviteUser,
   };
 
   return (

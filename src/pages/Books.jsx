@@ -21,29 +21,30 @@ import {
   Tabs,
   Collapse,
   Empty,
+  Switch,
+  Upload, // Added Upload
 } from 'antd';
 import {
-  SearchOutlined,
   PlusOutlined,
   EditOutlined,
+  UploadOutlined, // Added UploadOutlined
   DeleteOutlined,
   BookOutlined,
   FilterOutlined,
-  SortAscendingOutlined,
   InfoCircleOutlined,
   MenuOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAppContext } from '../context/AppContext';
 import BarcodeScanner from '../components/common/BarcodeScanner';
 import dayjs from 'dayjs';
+import Papa from 'papaparse'; // Added PapaParse
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
-const { TabPane } = Tabs;
-const { Panel } = Collapse;
 
 // Style for RTL tables
 const StyledTable = styled(Table)`
@@ -126,29 +127,87 @@ const TitleContainer = styled.div`
   }
 `;
 
-const ListItemMeta = styled.div`
-  display: flex;
-  flex-direction: column;
-`;
-
-const ListItemActions = styled.div`
-  display: flex;
-  gap: 8px;
-
-  @media (max-width: 480px) {
-    flex-direction: column;
-
-    button {
-      width: 100%;
-    }
-  }
-`;
-
 const FilterCollapse = styled(Collapse)`
   margin-bottom: 16px;
 
   .ant-collapse-content-box {
     padding-top: 16px !important;
+  }
+`;
+
+const ResponsiveCard = styled(Card)`
+  margin-bottom: 24px;
+  overflow: hidden;
+
+  @media (max-width: 450px) {
+    margin-bottom: 16px;
+
+    .ant-card-body {
+      padding: 12px;
+    }
+  }
+`;
+
+const ResponsiveFilterCollapse = styled(Collapse)`
+  margin-bottom: 16px;
+
+  @media (max-width: 450px) {
+    .ant-collapse-header {
+      padding: 8px 12px !important;
+      font-size: 14px;
+    }
+
+    .ant-collapse-content-box {
+      padding: 12px !important;
+    }
+  }
+`;
+
+const ResponsiveList = styled(List)`
+  @media (max-width: 450px) {
+    .ant-list-item {
+      padding: 10px !important;
+    }
+
+    .ant-list-item-meta-title {
+      font-size: 15px !important;
+    }
+
+    .ant-list-item-meta-description {
+      font-size: 13px !important;
+    }
+
+    .ant-list-item-action {
+      margin-left: 0 !important;
+      margin-top: 8px !important;
+    }
+  }
+`;
+
+const ResponsiveTable = styled(StyledTable)`
+  @media (max-width: 450px) {
+    .ant-table-cell {
+      padding: 8px 6px !important;
+      font-size: 13px !important;
+    }
+
+    .ant-pagination-item,
+    .ant-pagination-prev,
+    .ant-pagination-next {
+      min-width: 28px !important;
+      height: 28px !important;
+      line-height: 28px !important;
+    }
+
+    .ant-pagination-item a {
+      font-size: 13px !important;
+    }
+  }
+`;
+
+const ResponsiveSpace = styled(Space)`
+  @media (max-width: 450px) {
+    gap: 6px !important;
   }
 `;
 
@@ -180,6 +239,7 @@ const Books = () => {
   const [filteredBooks, setFilteredBooks] = useState([]);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [activeTab, setActiveTab] = useState('table');
+  const [isImporting, setIsImporting] = useState(false); // Added state for import loading
 
   // Check for screen size changes
   useEffect(() => {
@@ -496,57 +556,74 @@ const Books = () => {
   // Mobile list rendering for books
   const renderMobileList = () => {
     return (
-      <List
+      <ResponsiveList
         itemLayout="vertical"
         dataSource={filteredBooks}
         renderItem={(book) => (
           <List.Item
             key={book.id}
             actions={[
-              <Button
-                key="view"
-                type="link"
-                onClick={() => navigate(`/books/${book.id}`)}
-              >
-                פרטים
-              </Button>,
-              <Button
-                key="edit"
-                type="text"
-                icon={<EditOutlined />}
-                onClick={() => showModal(book)}
-              >
-                עריכה
-              </Button>,
-              <Popconfirm
-                key="delete"
-                title="בטוח שאתה רוצה למחוק את הספר?"
-                onConfirm={() => handleDelete(book.id)}
-                okText="כן"
-                cancelText="לא"
-                placement="topRight"
-              >
-                <Button type="text" danger icon={<DeleteOutlined />}>
-                  מחיקה
+              <Space size="small" wrap style={{ justifyContent: 'flex-end' }}>
+                <Button
+                  key="view"
+                  size="small"
+                  onClick={() => navigate(`/books/${book.id}`)}
+                >
+                  פרטים
                 </Button>
-              </Popconfirm>,
+                <Button
+                  key="edit"
+                  type="text"
+                  size="small"
+                  icon={<EditOutlined />}
+                  onClick={() => showModal(book)}
+                >
+                  עריכה
+                </Button>
+                <Popconfirm
+                  key="delete"
+                  title="למחוק ספר זה?"
+                  onConfirm={() => handleDelete(book.id)}
+                  okText="כן"
+                  cancelText="לא"
+                  placement="topRight"
+                >
+                  <Button
+                    type="text"
+                    danger
+                    size="small"
+                    icon={<DeleteOutlined />}
+                  >
+                    מחיקה
+                  </Button>
+                </Popconfirm>
+              </Space>,
             ]}
           >
             <List.Item.Meta
               avatar={<Avatar icon={<BookOutlined />} />}
               title={
-                <Link to={`/books/${book.id}`}>
-                  <Text strong>{book.title}</Text>
-                </Link>
+                <Space>
+                  <Link to={`/books/${book.id}`}>
+                    <Text strong>{book.title}</Text>
+                  </Link>
+                  {book.isLoaned && <Tag color="red">מושאל</Tag>}
+                </Space>
               }
               description={
-                <Space direction="vertical" size={0}>
+                <Space direction="vertical" size={1}>
                   <Text>מחבר: {getAuthorName(book.author)}</Text>
-                  {book.publisher && (
-                    <Text>הוצאה: {getPublisherName(book.publisher)}</Text>
+                  {book.series && (
+                    <Text>
+                      סדרה: {book.series}
+                      {book.volumeInSeries && ` (${book.volumeInSeries}`}
+                      {book.totalVolumesInSeries &&
+                        `/${book.totalVolumesInSeries}`}
+                      {book.volumeInSeries && ')'}
+                    </Text>
                   )}
-                  {book.publicationYear && (
-                    <Text>שנה: {book.publicationYear}</Text>
+                  {book.classification && (
+                    <Text>סיווג: {book.classification}</Text>
                   )}
                   {book.categories && book.categories.length > 0 && (
                     <Space size={[0, 4]} wrap>
@@ -568,7 +645,7 @@ const Books = () => {
 
   return (
     <div>
-      <StyledCard>
+      <ResponsiveCard>
         <TitleContainer>
           <Title level={2}>ספרים</Title>
           <Button
@@ -581,15 +658,16 @@ const Books = () => {
             הוספת ספר
           </Button>
         </TitleContainer>
-        <FilterCollapse
+
+        <ResponsiveFilterCollapse
           items={[
             {
               key: '1',
-              header: (
-                <Space>
+              label: (
+                <ResponsiveSpace>
                   <FilterOutlined />
                   <span>סינון ספרים</span>
-                </Space>
+                </ResponsiveSpace>
               ),
               children: (
                 <FilterContainer>
@@ -651,6 +729,7 @@ const Books = () => {
             },
           ]}
         />
+
         {isMobile && (
           <Tabs
             activeKey={activeTab}
@@ -662,48 +741,50 @@ const Books = () => {
               {
                 key: 'list',
                 label: (
-                  <Space>
+                  <ResponsiveSpace>
                     <MenuOutlined />
                     <span>רשימה</span>
-                  </Space>
+                  </ResponsiveSpace>
                 ),
               },
               {
                 key: 'table',
                 label: (
-                  <Space>
+                  <ResponsiveSpace>
                     <InfoCircleOutlined />
                     <span>טבלה</span>
-                  </Space>
+                  </ResponsiveSpace>
                 ),
               },
             ]}
           />
         )}
+
         {filteredBooks.length === 0 ? (
           <Empty description="לא נמצאו ספרים" />
         ) : isMobile && activeTab === 'list' ? (
           renderMobileList()
         ) : (
-          <StyledTable
-            dataSource={filteredBooks}
-            columns={columns}
-            rowKey="id"
-            pagination={{
-              pageSize: isMobile ? 5 : 10,
-              showSizeChanger: !isMobile,
-              size: isMobile ? 'small' : 'default',
-              showTotal: (total) => `סה"כ ${total} ספרים`,
-            }}
-            size={isMobile ? 'small' : 'middle'}
-            scroll={isMobile ? { x: true } : undefined}
-            locale={{
-              emptyText: 'לא נמצאו ספרים',
-            }}
-          />
+          <div className="responsive-table-container">
+            <ResponsiveTable
+              dataSource={filteredBooks}
+              columns={columns}
+              rowKey="id"
+              pagination={{
+                pageSize: isMobile ? 5 : 10,
+                showSizeChanger: !isMobile,
+                size: isMobile ? 'small' : 'default',
+                showTotal: (total) => `סה"כ ${total} ספרים`,
+              }}
+              size={isMobile ? 'small' : 'middle'}
+              scroll={{ x: 'max-content' }}
+              locale={{
+                emptyText: 'לא נמצאו ספרים',
+              }}
+            />
+          </div>
         )}
-      </StyledCard>
-
+      </ResponsiveCard>
       {/* Book Form Modal */}
       <Modal
         title={editingBook ? 'עריכת ספר' : 'הוספת ספר חדש'}
@@ -713,6 +794,13 @@ const Books = () => {
         destroyOnClose
         width={isMobile ? '95%' : 700}
         centered
+        styles={{
+          body: {
+            maxHeight: '70vh',
+            overflowY: 'auto',
+            padding: isMobile ? '12px' : '24px',
+          },
+        }}
       >
         <Form
           form={form}
@@ -720,6 +808,7 @@ const Books = () => {
           onFinish={handleSubmit}
           initialValues={createBookModel()}
           size={isMobile ? 'middle' : 'large'}
+          className="book-form"
         >
           <Form.Item
             name="title"
@@ -884,6 +973,46 @@ const Books = () => {
               />
             </Form.Item>
           </div>
+
+          <Form.Item name="series" label="סדרה">
+            <Input placeholder="שם הסדרה" />
+          </Form.Item>
+
+          <div
+            style={{
+              display: 'flex',
+              gap: '16px',
+              flexDirection: isMobile ? 'column' : 'row',
+            }}
+          >
+            <Form.Item
+              name="volumeInSeries"
+              label="כרך בסדרה"
+              style={{ flex: 1 }}
+            >
+              <InputNumber placeholder="מספר כרך" style={{ width: '100%' }} />
+            </Form.Item>
+
+            <Form.Item
+              name="totalVolumesInSeries"
+              label="סך כרכים בסדרה"
+              style={{ flex: 1 }}
+            >
+              <InputNumber placeholder="סך כרכים" style={{ width: '100%' }} />
+            </Form.Item>
+          </div>
+
+          <Form.Item name="part" label="חלק">
+            <Input placeholder="חלק" />
+          </Form.Item>
+
+          <Form.Item name="classification" label="סיווג">
+            <Input placeholder="סיווג הספר" />
+          </Form.Item>
+
+          <Form.Item name="isLoaned" label="הושאל" valuePropName="checked">
+            <Switch />
+          </Form.Item>
 
           <Form.Item name="description" label="תיאור הספר">
             <TextArea placeholder="הזן תיאור" rows={4} />

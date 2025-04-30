@@ -303,3 +303,121 @@ body {
     width: 100% !important;
   }
 }
+
+/* Specific adjustments for modern mid-to-large phones like Samsung S21+ */
+@media (min-width: 376px) and (max-width: 450px) {
+  /* Adjust font sizes */
+  h1.ant-typography {
+    font-size: 22px !important;
+  }
+
+  h2.ant-typography {
+    font-size: 18px !important;
+  }
+
+  /* Adjust table cells for better readability */
+  .ant-table-cell {
+    padding: 8px 6px !important;
+    font-size: 13px !important;
+  }
+  
+  /* Improve table overflow behavior */
+  .ant-table-body {
+    overflow-x: auto !important;
+  }
+  
+  /* Make cards more compact */
+  .ant-card-body {
+    padding: 12px 10px !important;
+  }
+  
+  /* Adjust space between items */
+  .ant-space {
+    gap: 6px !important;
+  }
+  
+  /* Improve form layout on mid-sized devices */
+  .ant-form-item {
+    margin-bottom: 10px !important;
+  }
+  
+  /* Adjust button sizes */
+  .ant-btn {
+    padding: 4px 10px !important;
+    font-size: 13px !important;
+  }
+  
+  /* Improve description lists */
+  .ant-descriptions-item-label,
+  .ant-descriptions-item-content {
+    padding: 8px 6px !important;
+    font-size: 13px !important;
+  }
+}
+
+/* Additional improvements for all mobile devices */
+@media (max-width: 768px) {
+  /* Make sure content doesn't overflow */
+  .ant-card, .ant-table, .ant-descriptions {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+  }
+  
+  /* Improve tap targets */
+  .ant-btn, .ant-checkbox, .ant-radio, .ant-switch {
+    min-height: 32px !important;
+  }
+  
+  /* Fix modal sizing */
+  .ant-modal {
+    width: 95vw !important;
+    margin: 0 auto !important;
+  }
+  
+  /* Make descriptions more readable */
+  .ant-descriptions-row > th, 
+  .ant-descriptions-row > td {
+    padding: 8px 6px !important;
+  }
+  
+  /* Book detail layout for better readability */
+  .book-details-container {
+    flex-direction: column !important;
+  }
+  
+  .book-cover-container {
+    width: 100% !important;
+    max-width: 250px !important;
+    margin: 0 auto 16px auto !important;
+  }
+  
+  /* Improve form layouts specifically for books */
+  .book-form .ant-form-item-label {
+    padding-bottom: 4px !important;
+  }
+  
+  /* Make series info display better */
+  .series-info {
+    flex-direction: column !important;
+  }
+  
+  /* Special case for BookDetails - optimize layout */
+  .book-detail-card .ant-descriptions-view {
+    width: 100% !important;
+    overflow-x: auto !important;
+  }
+}
+
+/* Ensure book detail page has proper scroll handling */
+.book-details-page {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* Ensure tables can scroll horizontally */
+.responsive-table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
