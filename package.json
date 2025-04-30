@@ -5,6 +5,7 @@
   "type": "module",
   "homepage": "/book-manager/",
   "scripts": {
+    "setup:appwrite": "node scripts/appwrite-setup.cjs",
     "dev": "vite --host",
     "build": "vite build",
     "lint": "eslint .",

@@ -15,7 +15,7 @@ This guide will walk you through setting up Appwrite as the backend for your Boo
    - Click "Create Project"
    - Name your project (e.g., "Book Manager")
    - Select "Web App" as the platform
-   - Enter your GitHub Pages domain (e.g., `yourusername.github.io`) to configure CORS
+   - Enter your GitHub Pages domain (e.g., `yourusername.github.io`) to configure CORS (use * while developing)
    - Click "Create" to confirm
 
 ## Step 2: Set Up Authentication
@@ -30,7 +30,22 @@ This guide will walk you through setting up Appwrite as the backend for your Boo
 2. Set your default user labels (we will use these for permission control)
 3. Configure email settings for verification, password reset, etc.
 
-## Step 3: Create a Database and Collections
+## Step 3: Configure API Keys
+
+1. Go to "API Keys" in the left sidebar
+2. Create a new API key:
+   - Name: "book-manager-frontend"
+   - Scopes: Select the necessary permissions for your collections:
+     - collections.read
+     - documents.read
+     - files.read
+     - account.read
+   - Click "Create"
+3. Copy the generated API key - you'll need it in your frontend code
+
+## Step 4: Create a Database and Collections
+grab the projectId and the apikey and run `npm run setup:appwrite`, this will build all the appwrite following db structure, the storage configuration and will create your admin user.
+it will also create the .env file with all of the env vars.
 
 1. Go to "Databases" in the left sidebar
 2. Create a new database:
@@ -134,19 +149,6 @@ For each collection, set the same permissions model:
 5. Go to the "Settings" tab and configure permissions:
    - Add "Read" permission for "any" role
    - Add "Create", "Update", "Delete" permissions for "label:admin" role
-
-## Step 5: Configure API Keys
-
-1. Go to "API Keys" in the left sidebar
-2. Create a new API key:
-   - Name: "book-manager-frontend"
-   - Scopes: Select the necessary permissions for your collections:
-     - collections.read
-     - documents.read
-     - files.read
-     - account.read
-   - Click "Create"
-3. Copy the generated API key - you'll need it in your frontend code
 
 ## Step 6: Set Up Environment Variables
 
