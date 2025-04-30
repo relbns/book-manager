@@ -1,2 +1,0 @@
-import{r as o,I as s}from"./index-Bv38C-ju.js";import{D as c}from"./DeleteOutlined-DFutYCzo.js";function a(){return a=Object.assign?Object.assign.bind():function(e){for(var t=1;t<arguments.length;t++){var n=arguments[t];for(var r in n)Object.prototype.hasOwnProperty.call(n,r)&&(e[r]=n[r])}return e},a.apply(this,arguments)}const i=(e,t)=>o.createElement(s,a({},e,{ref:t,icon:c})),p=o.forwardRef(i);export{p as R};
-//# sourceMappingURL=DeleteOutlined-C2VE5Kf8.js.map
