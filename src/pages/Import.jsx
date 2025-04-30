@@ -16,13 +16,12 @@ import {
   Radio,
 } from 'antd';
 import {
-  InboxOutlined,
   FileTextOutlined,
   CheckCircleOutlined,
   LoadingOutlined,
   FileExcelOutlined,
   FileOutlined,
-  ExclamationCircleOutlined, // Added for error display
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import styled from 'styled-components';
 import { useAppContext } from '../context/AppContext';
@@ -199,8 +198,8 @@ const Import = () => {
     setError(null);
     setImportResult(null); // Reset previous results
 
-    const batchSize = 50; // Process 50 records per batch
-    const delayBetweenBatches = 1000; // 1 second delay
+    const batchSize = 50; // Process 50 records per batch for UI feedback
+    const delayBetweenItems = 600; // ~100 requests/minute (Rate limit is 120/min)
     let importedCount = 0;
     let errorCount = 0;
     const totalRecords = fileData.length;
@@ -227,6 +226,7 @@ const Import = () => {
             const model = modelCreator(processedItem);
             await addFunction(model);
             importedCount++;
+            await sleep(delayBetweenItems); // Add delay after each item import
           } catch (itemError) {
             console.error(`Error importing item: ${itemError.message}`, item);
             setError(`שגיאה בייבוא רשומה: ${itemError.message}`); // Show last error
@@ -236,10 +236,7 @@ const Import = () => {
           }
         }
 
-        // Wait before processing the next batch (if there are more batches)
-        if (i + batchSize < totalRecords) {
-          await sleep(delayBetweenBatches);
-        }
+        // Removed delay between batches, now delaying between items
       }
 
       // Update state after all batches are processed

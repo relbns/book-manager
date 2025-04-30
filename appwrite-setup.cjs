@@ -1,6 +1,6 @@
-// appwrite-setup.js
-// Fixed script to automate Appwrite setup for Book Manager app
-const { Client, Databases, Storage, ID, Permission, Role } = require('node-appwrite');
+// appwrite-setup.cjs
+// script to automate Appwrite setup for Book Manager app
+const { Client, Databases, Storage, Users, ID, Permission, Role, Query } = require('node-appwrite'); // Added Users
 const fs = require('fs');
 const readline = require('readline');
 
@@ -50,8 +50,9 @@ const initClient = () => {
 
     const databases = new Databases(client);
     const storage = new Storage(client);
+    const users = new Users(client); // Initialize Users service
 
-    return { client, databases, storage };
+    return { client, databases, storage, users }; // Return users service
 };
 
 // Set up database
@@ -358,15 +359,60 @@ const setupStorage = async (storage) => {
 // Sleep function to add delay between API calls
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+const setupAdminUser = async (users) => {
+    const adminEmail = 'admin@my-books-manager.com';
+    const adminPassword = 'Passw0rd!';
+    const adminName = 'Admin User';
+
+    try {
+        console.log(`Checking if admin user (${adminEmail}) exists...`);
+
+        const existingUsers = await users.list([Query.equal("email", [adminEmail])]);
+        console.log(`Found ${existingUsers.total} users with email ${adminEmail}`);
+        if (existingUsers.total === 0) {
+            console.log('Admin user not found. Creating...');
+            // Create the user
+            const newUser = await users.create(
+                ID.unique(),
+                adminEmail,
+                '+972501234567', // phone (optional)
+                adminPassword,
+                adminName // name (optional)
+            );
+
+            console.log(`✅ Admin user created with ID: ${newUser.$id}`);
+
+            const result = await users.updateLabels(
+                newUser.$id, // userId
+                ['admin'] // labels
+            );
+            console.log(`✅ Admin label assigned to user: ${result.$id}`);
+
+        } else {
+            console.log(`✅ Admin user (${adminEmail}) already exists.`);
+        }
+    } catch (error) {
+        console.error('Error setting up admin user:', error.message);
+        // Log the detailed error for debugging
+        if (error.response) {
+            console.error('Detailed error:', JSON.stringify(error.response, null, 2));
+        }
+    }
+};
+
 // Main setup function
 const setup = async () => {
     try {
         // Get configuration from user
+        console.log('Welcome to the Book Manager Appwrite setup script!');
         config.projectId = await question('Enter your Appwrite Project ID: ');
         config.apiKey = await question('Enter your Appwrite API Key (with full access): ');
 
         // Initialize client
-        const { client, databases, storage } = initClient();
+        const { databases, storage, users } = initClient(); // Get users service
+
+        // Set up admin user (do this early in case other steps depend on it)
+        await setupAdminUser(users);
 
         // Create database
         const database = await setupDatabase(databases);
@@ -392,10 +438,6 @@ const setup = async () => {
         console.log(' - "active" for loan status');
         console.log(' - "#1890ff" for category colors');
         console.log(' - 14 for defaultLoanPeriod');
-        console.log('\nNext steps:');
-        console.log('1. Add platforms in your Appwrite console (localhost for development, GitHub Pages for production)');
-        console.log('2. Add at least one user with admin role in Authentication settings');
-        console.log('3. Update your frontend code to use the Appwrite services');
 
     } catch (error) {
         console.error('Setup failed:', error);
