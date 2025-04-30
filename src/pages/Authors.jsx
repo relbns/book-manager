@@ -114,10 +114,11 @@ const Authors = () => {
     setEditingAuthor(author);
 
     if (author) {
+      // Use birthDate and deathDate, parsing the ISO string from Appwrite
       form.setFieldsValue({
         ...author,
-        birthYear: author.birthYear ? dayjs(author.birthYear.toString()) : null,
-        deathYear: author.deathYear ? dayjs(author.deathYear.toString()) : null,
+        birthDate: author.birthDate ? dayjs(author.birthDate) : null,
+        deathDate: author.deathDate ? dayjs(author.deathDate) : null,
       });
     } else {
       form.resetFields();
@@ -132,11 +133,11 @@ const Authors = () => {
   };
 
   const handleSubmit = async (values) => {
-    // Format dates
+    // Format dates to ISO strings for Appwrite Date attributes
     const formattedValues = {
       ...values,
-      birthYear: values.birthYear ? values.birthYear.year() : null,
-      deathYear: values.deathYear ? values.deathYear.year() : null,
+      birthDate: values.birthDate ? values.birthDate.toISOString() : null,
+      deathDate: values.deathDate ? values.deathDate.toISOString() : null,
     };
 
     if (editingAuthor) {
@@ -190,8 +191,9 @@ const Authors = () => {
       title: 'שנים',
       key: 'years',
       render: (_, record) => {
-        const birthYear = record.birthYear || '?';
-        const deathYear = record.deathYear || (record.birthYear ? 'חי' : '?');
+        // Display year from birthDate/deathDate
+        const birthYear = record.birthDate ? dayjs(record.birthDate).year() : '?';
+        const deathYear = record.deathDate ? dayjs(record.deathDate).year() : (record.birthDate ? 'חי' : '?');
         return `${birthYear} - ${deathYear}`;
       },
     },
@@ -324,12 +326,13 @@ const Authors = () => {
           </Form.Item>
 
           <div style={{ display: 'flex', gap: 16 }}>
-            <Form.Item name="birthYear" label="שנת לידה" style={{ flex: 1 }}>
-              <DatePicker picker="year" style={{ width: '100%' }} />
+            {/* Change to birthDate/deathDate using standard DatePicker */}
+            <Form.Item name="birthDate" label="תאריך לידה" style={{ flex: 1 }}>
+              <DatePicker style={{ width: '100%' }} />
             </Form.Item>
 
-            <Form.Item name="deathYear" label="שנת פטירה" style={{ flex: 1 }}>
-              <DatePicker picker="year" style={{ width: '100%' }} />
+            <Form.Item name="deathDate" label="תאריך פטירה" style={{ flex: 1 }}>
+              <DatePicker style={{ width: '100%' }} />
             </Form.Item>
           </div>
 

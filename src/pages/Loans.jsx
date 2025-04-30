@@ -96,6 +96,31 @@ const Loans = () => {
   const [statusFilter, setStatusFilter] = useState([]);
   const [showingOverdue, setShowingOverdue] = useState(false);
 
+  // Effect to set form values when modal opens
+  useEffect(() => {
+    if (isModalVisible) {
+      if (editingLoan) {
+        form.setFieldsValue({
+          ...editingLoan,
+          // Ensure bookId is the correct identifier ($id or id)
+          bookId: editingLoan.bookId || editingLoan.$id,
+          loanDate: dayjs(editingLoan.loanDate),
+          dueDate: dayjs(editingLoan.dueDate),
+          returnDate: editingLoan.returnDate ? dayjs(editingLoan.returnDate) : null,
+        });
+      } else {
+        // Reset and set defaults for new loan
+        form.resetFields();
+        form.setFieldsValue({
+          loanDate: dayjs(),
+          dueDate: dayjs().add(14, 'day'),
+          status: 'active',
+        });
+      }
+    }
+  }, [isModalVisible, editingLoan, form]);
+
+
   // Parse URL query parameters
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -177,7 +202,8 @@ const Loans = () => {
 
   // Get book title
   const getBookTitle = (bookId) => {
-    const book = books.find((b) => b.id === bookId);
+    // Check against both 'id' and '$id' from Appwrite
+    const book = books.find((b) => b.id === bookId || b.$id === bookId);
     return book ? book.title : 'לא ידוע';
   };
 
@@ -203,25 +229,9 @@ const Loans = () => {
 
   // Modal handlers
   const showModal = (loan = null) => {
-    setEditingLoan(loan);
-
-    if (loan) {
-      form.setFieldsValue({
-        ...loan,
-        loanDate: dayjs(loan.loanDate),
-        dueDate: dayjs(loan.dueDate),
-        returnDate: loan.returnDate ? dayjs(loan.returnDate) : null,
-      });
-    } else {
-      form.resetFields();
-      form.setFieldsValue({
-        loanDate: dayjs(),
-        dueDate: dayjs().add(14, 'day'),
-        status: 'active',
-      });
-    }
-
-    setIsModalVisible(true);
+    setEditingLoan(loan); // Set the loan being edited (or null for new)
+    setIsModalVisible(true); // Open the modal
+    // Form values will be set by the useEffect hook above
   };
 
   const handleCancel = () => {
@@ -241,7 +251,40 @@ const Loans = () => {
 
     try {
       if (editingLoan) {
-        await updateLoan(editingLoan.id, formattedValues);
+        // Use $id primarily, fallback to id for the loan document
+        const loanIdToUpdate = editingLoan.$id || editingLoan.id;
+
+        // Ensure the required bookId from the original record is included
+        // Merge original data with form values, prioritizing form values
+        const finalValues = {
+          ...editingLoan, // Start with original data
+          ...formattedValues, // Overwrite with form values (including formatted dates)
+          bookId: formattedValues.bookId || editingLoan.bookId, // Ensure bookId is present
+        };
+
+        if (!loanIdToUpdate) {
+          console.error(
+            'Attempted to update loan with invalid document ID:',
+            editingLoan
+          );
+          message.error('שגיאה: מזהה השאלה לעדכון לא תקין.');
+          setIsModalVisible(false);
+          form.resetFields();
+          return;
+        }
+
+        if (!finalValues.bookId) {
+           console.error(
+            'Attempted to update loan with missing bookId:',
+            finalValues
+          );
+          message.error('שגיאה: יש לבחור ספר להשאלה.');
+          // Keep modal open for correction
+          return;
+        }
+
+
+        await updateLoan(loanIdToUpdate, finalValues);
         message.success('ההשאלה עודכנה בהצלחה');
       } else {
         await addLoan(formattedValues);
@@ -256,9 +299,16 @@ const Loans = () => {
     }
   };
 
-  const handleDelete = async (loanId) => {
+  const handleDelete = async (record) => {
     try {
-      await deleteLoan(loanId);
+      // Use $id primarily, fallback to id
+      const loanIdToDelete = record.$id || record.id;
+      if (!loanIdToDelete) {
+        console.error('Attempted to delete loan with invalid ID:', record);
+        message.error('שגיאה: מזהה השאלה למחיקה לא תקין.');
+        return;
+      }
+      await deleteLoan(loanIdToDelete);
       message.success('ההשאלה נמחקה בהצלחה');
     } catch (error) {
       console.error('Error deleting loan:', error);
@@ -266,10 +316,17 @@ const Loans = () => {
     }
   };
 
-  const handleReturnBook = async (loan) => {
+  const handleReturnBook = async (record) => {
     try {
-      await updateLoan(loan.id, {
-        ...loan,
+      // Use $id primarily, fallback to id
+      const loanIdToUpdate = record.$id || record.id;
+       if (!loanIdToUpdate) {
+        console.error('Attempted to return book with invalid loan ID:', record);
+        message.error('שגיאה: מזהה השאלה לסימון החזרה לא תקין.');
+        return;
+      }
+      await updateLoan(loanIdToUpdate, {
+        ...record, // Use the passed record data
         returnDate: new Date().toISOString(),
         status: 'returned',
       });
@@ -405,7 +462,7 @@ const Loans = () => {
           <Tooltip title="מחיקה">
             <Popconfirm
               title="בטוח שאתה רוצה למחוק את ההשאלה?"
-              onConfirm={() => handleDelete(record.id)}
+              onConfirm={() => handleDelete(record)} // Pass the whole record
               okText="כן"
               cancelText="לא"
               placement="topRight"
@@ -556,7 +613,7 @@ const Loans = () => {
                 : filteredLoans
             }
             columns={columns}
-            rowKey="id"
+            rowKey="$id" // Use Appwrite's document ID as the key
             rowClassName={(record) =>
               isLoanOverdue(record) ? 'overdue-row' : ''
             }
@@ -590,18 +647,17 @@ const Loans = () => {
           <Form.Item
             name="bookId"
             label="ספר"
-            rules={[{ required: true, message: 'נא לבחור ספר' }]}
+            rules={[{ required: true, message: 'נא לבחור ספר' }]} // Re-added required rule
           >
             <Select
               showSearch
               placeholder="בחר ספר"
               optionFilterProp="children"
-              filterOption={(input, option) =>
-                option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
-              }
+              // Removed filterOption to use default behavior
             >
+              {/* Ensure book.$id is used as key if available */}
               {books.map((book) => (
-                <Option key={book.id} value={book.id}>
+                <Option key={book.$id || book.id} value={book.$id || book.id}>
                   {book.title}
                 </Option>
               ))}
@@ -619,7 +675,8 @@ const Loans = () => {
           <Form.Item
             name="borrowerContact"
             label="פרטי קשר"
-            rules={[{ required: true, message: 'נא להזין פרטי קשר' }]}
+            // Removed required rule
+            rules={[]}
           >
             <Input placeholder="טלפון / אימייל" />
           </Form.Item>
@@ -628,7 +685,8 @@ const Loans = () => {
             <Form.Item
               name="loanDate"
               label="תאריך השאלה"
-              rules={[{ required: true, message: 'נא לבחור תאריך השאלה' }]}
+              // Removed required rule
+              rules={[]}
               style={{ flex: 1 }}
             >
               <DatePicker style={{ width: '100%' }} />
@@ -637,7 +695,8 @@ const Loans = () => {
             <Form.Item
               name="dueDate"
               label="תאריך החזרה צפוי"
-              rules={[{ required: true, message: 'נא לבחור תאריך החזרה צפוי' }]}
+              // Removed required rule
+              rules={[]}
               style={{ flex: 1 }}
             >
               <DatePicker style={{ width: '100%' }} />

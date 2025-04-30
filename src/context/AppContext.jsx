@@ -76,8 +76,8 @@ const createAuthorModel = (data = {}) => {
     id: data.id || Date.now().toString(),
     name: data.name || '',
     biography: data.biography || '',
-    birthYear: data.birthYear || null,
-    deathYear: data.deathYear || null,
+    birthDate: data.birthDate || null, // Changed from birthYear
+    deathDate: data.deathDate || null, // Changed from deathYear
     nationality: data.nationality || '',
     notes: data.notes || '',
   };

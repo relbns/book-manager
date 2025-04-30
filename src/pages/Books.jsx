@@ -240,6 +240,7 @@ const Books = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [activeTab, setActiveTab] = useState('table');
   const [isImporting, setIsImporting] = useState(false); // Added state for import loading
+  const [currentPageSize, setCurrentPageSize] = useState(window.innerWidth <= 768 ? 5 : 10); // State for page size
 
   // Check for screen size changes
   useEffect(() => {
@@ -470,7 +471,8 @@ const Books = () => {
       dataIndex: 'title',
       key: 'title',
       render: (text, record) => (
-        <Link to={`/books/${record.id}`}>
+        // Use $id if available, otherwise fallback to id
+        <Link to={`/books/${record.$id || record.id}`}>
           <Text strong>{text}</Text>
         </Link>
       ),
@@ -567,7 +569,8 @@ const Books = () => {
                 <Button
                   key="view"
                   size="small"
-                  onClick={() => navigate(`/books/${book.id}`)}
+                  // Use $id if available, otherwise fallback to id
+                  onClick={() => navigate(`/books/${book.$id || book.id}`)}
                 >
                   פרטים
                 </Button>
@@ -604,7 +607,8 @@ const Books = () => {
               avatar={<Avatar icon={<BookOutlined />} />}
               title={
                 <Space>
-                  <Link to={`/books/${book.id}`}>
+                  {/* Use $id if available, otherwise fallback to id */}
+                  <Link to={`/books/${book.$id || book.id}`}>
                     <Text strong>{book.title}</Text>
                   </Link>
                   {book.isLoaned && <Tag color="red">מושאל</Tag>}
@@ -771,10 +775,12 @@ const Books = () => {
               columns={columns}
               rowKey="id"
               pagination={{
-                pageSize: isMobile ? 5 : 10,
+                pageSize: currentPageSize, // Use state for page size
+                onShowSizeChange: (current, size) => setCurrentPageSize(size), // Handler for size change
+                pageSizeOptions: isMobile ? ['5', '10'] : ['10', '20', '50', '100'], // Options for page size
                 showSizeChanger: !isMobile,
                 size: isMobile ? 'small' : 'default',
-                showTotal: (total) => `סה"כ ${total} ספרים`,
+                showTotal: (total, range) => `${range[0]}-${range[1]} מתוך ${total} ספרים`, // Updated total text
               }}
               size={isMobile ? 'small' : 'middle'}
               scroll={{ x: 'max-content' }}
@@ -844,7 +850,7 @@ const Books = () => {
               )}
             >
               {authors.map((author) => (
-                <Option key={author.id} value={author.id}>
+                <Option key={author.$id} value={author.$id}> {/* Changed author.id to author.$id */}
                   {author.name}
                 </Option>
               ))}

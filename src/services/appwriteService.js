@@ -590,8 +590,17 @@ const LoanService = {
   // Update an existing loan
   updateLoan: async (id, loanData) => {
     try {
-      // Remove id from the data to be updated
-      const { id: _, ...data } = loanData;
+      // Remove Appwrite metadata fields before updating
+      const {
+        $id,
+        $databaseId,
+        $collectionId,
+        $createdAt,
+        $updatedAt,
+        $permissions,
+        id: _, // Also remove 'id' if it exists from the original object structure
+        ...data
+      } = loanData;
 
       // Format dates
       if (data.loanDate) {

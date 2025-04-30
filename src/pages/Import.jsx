@@ -24,6 +24,7 @@ import {
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import styled from 'styled-components';
+import { Progress } from 'antd'; // Import Progress component
 import { useAppContext } from '../context/AppContext';
 import csvService from '../services/csvService';
 
@@ -63,8 +64,10 @@ const Import = () => {
   const [file, setFile] = useState(null);
   const [fileData, setFileData] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(null); // Stores critical/last error
   const [importResult, setImportResult] = useState(null);
+  const [importErrors, setImportErrors] = useState([]); // Stores list of item errors
+  const [progress, setProgress] = useState({ current: 0, total: 0 }); // For detailed progress
 
   // Collection models map
   const modelCreators = {
@@ -163,6 +166,11 @@ const Import = () => {
       bookData.isLoaned = ['כן', 'yes', 'true', '1'].includes(loanedValue);
     }
 
+    // Ensure title is a string
+    if ('title' in bookData && bookData.title !== null && typeof bookData.title !== 'string') {
+      bookData.title = String(bookData.title);
+    }
+
     // Convert numeric string fields to numbers
     if (
       'volumeInSeries' in bookData &&
@@ -196,13 +204,16 @@ const Import = () => {
 
     setLoading(true);
     setError(null);
-    setImportResult(null); // Reset previous results
+    setImportResult(null);
+    setImportErrors([]); // Reset specific errors list
+    const totalRecords = fileData.length;
+    setProgress({ current: 0, total: totalRecords }); // Initialize progress
 
     const batchSize = 50; // Process 50 records per batch for UI feedback
     const delayBetweenItems = 600; // ~100 requests/minute (Rate limit is 120/min)
     let importedCount = 0;
     let errorCount = 0;
-    const totalRecords = fileData.length;
+    // totalRecords is already defined above
 
     try {
       const modelCreator = modelCreators[importType];
@@ -212,12 +223,15 @@ const Import = () => {
         throw new Error(`סוג היבוא ${importType} אינו נתמך`);
       }
 
+      let currentRecordIndex = 0; // Track overall record index for progress
+
       for (let i = 0; i < totalRecords; i += batchSize) {
         const batch = fileData.slice(i, i + batchSize);
         console.log(`Importing batch ${i / batchSize + 1} of ${Math.ceil(totalRecords / batchSize)}...`);
-        message.info(`מעבד ${i + batch.length} מתוך ${totalRecords} רשומות...`); // Progress update
+        // Removed message.info - progress bar will be used
 
         for (const item of batch) {
+          currentRecordIndex++; // Increment index for each item attempt
           try {
             let processedItem = item;
             if (importType === 'books') {
@@ -226,17 +240,23 @@ const Import = () => {
             const model = modelCreator(processedItem);
             await addFunction(model);
             importedCount++;
-            await sleep(delayBetweenItems); // Add delay after each item import
           } catch (itemError) {
             console.error(`Error importing item: ${itemError.message}`, item);
-            setError(`שגיאה בייבוא רשומה: ${itemError.message}`); // Show last error
+            const errorDetail = {
+              item: item, // Store the original item data
+              message: itemError.message,
+            };
+            setImportErrors(prevErrors => [...prevErrors, errorDetail]); // Add error to the list
+            setError(`שגיאה בייבוא רשומה: ${itemError.message}`); // Keep track of the last error for general display if needed
             errorCount++;
             // Optional: Decide whether to stop or continue on item error
             // if (errorCount > 10) throw new Error("Too many errors during import.");
+          } finally {
+             // Update progress after each item attempt (success or failure)
+             setProgress({ current: currentRecordIndex, total: totalRecords });
+             await sleep(delayBetweenItems); // Add delay after each item import
           }
         }
-
-        // Removed delay between batches, now delaying between items
       }
 
       // Update state after all batches are processed
@@ -272,6 +292,8 @@ const Import = () => {
     setFileData([]);
     setError(null);
     setImportResult(null);
+    setImportErrors([]); // Reset errors list
+    setProgress({ current: 0, total: 0 }); // Reset progress
     setCurrentStep(0);
   };
 
@@ -488,15 +510,22 @@ const Import = () => {
       title: 'ייבוא',
       content: (
         <>
-          {loading && ( // Show loading indicator during import
-            <div style={{ textAlign: 'center', padding: 24 }}>
-              <LoadingOutlined style={{ fontSize: 24 }} />
-              <p>מייבא נתונים (זה עשוי לקחת זמן)...</p>
-              {importResult && <p>יובאו {importResult.count} מתוך {importResult.total}</p>}
+          {loading && ( // Show progress bar and loading indicator during import
+            <div style={{ padding: '24px 0' }}>
+              <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                 <LoadingOutlined style={{ fontSize: 24, marginRight: 8 }} />
+                 <p>מייבא נתונים (זה עשוי לקחת זמן)...</p>
+              </div>
+              <Progress
+                percent={Math.round((progress.current / progress.total) * 100)}
+                status="active"
+                strokeColor={{ from: '#108ee9', to: '#87d068' }}
+                format={() => `${progress.current} / ${progress.total}`}
+              />
             </div>
           )}
-          {!loading && importResult && (
-            <div style={{ textAlign: 'center', padding: 24 }}>
+          {!loading && importResult && ( // Show results after import finishes
+            <div style={{ padding: 24 }}>
               {importResult.errors === 0 ? (
                 <>
                   <CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a' }} />
@@ -504,19 +533,45 @@ const Import = () => {
                   <Paragraph>
                     יובאו {importResult.count} רשומות מסוג {importResult.type}.
                   </Paragraph>
-                </>
+                </> 
               ) : (
-                <>
+                <div style={{ textAlign: 'center' }}>
                   <ExclamationCircleOutlined style={{ fontSize: 48, color: '#faad14' }} />
                   <Title level={3}>הייבוא הושלם עם שגיאות</Title>
                   <Paragraph>
                     יובאו {importResult.count} מתוך {importResult.total} רשומות מסוג {importResult.type}.
                   </Paragraph>
                   <Paragraph type="danger">
-                    נתקלו ב-{importResult.errors} שגיאות במהלך הייבוא. בדוק את יומני המסוף לפרטים.
+                    נתקלו ב-{importResult.errors} שגיאות במהלך הייבוא.
                   </Paragraph>
-                  {error && <Alert message="שגיאה אחרונה" description={error} type="error" showIcon />}
-                </>
+                  {/* Removed the generic last error Alert */}
+                  {/* Display table of errors */}
+                  {importErrors.length > 0 && (
+                     <div style={{ marginTop: 24, textAlign: 'left' }}>
+                       <Title level={4}>פרטי שגיאות:</Title>
+                       <Table
+                         dataSource={importErrors}
+                         columns={[
+                           {
+                             title: 'נתוני רשומה',
+                             dataIndex: 'item',
+                             key: 'item',
+                             render: (item) => <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{JSON.stringify(item, null, 2)}</pre>,
+                           },
+                           {
+                             title: 'הודעת שגיאה',
+                             dataIndex: 'message',
+                             key: 'message',
+                           },
+                         ]}
+                         pagination={{ pageSize: 5 }}
+                         size="small"
+                         rowKey={(record, index) => index}
+                         scroll={{ x: 'max-content' }}
+                       />
+                     </div>
+                   )}
+                </div>
               )}
             </div>
           )}

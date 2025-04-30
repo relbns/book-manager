@@ -135,7 +135,8 @@ const BookDetails = () => {
 
   // Load book data
   useEffect(() => {
-    const foundBook = books.find((b) => b.id === id);
+    // Find book by checking both $id and id
+    const foundBook = books.find((b) => b.$id === id || b.id === id);
 
     if (foundBook) {
       setBook(foundBook);
