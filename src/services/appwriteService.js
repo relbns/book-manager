@@ -1,5 +1,6 @@
 // src/services/appwriteService.js
 import { Client, Account, Databases, Storage, Query, ID, Permission, Role } from 'appwrite';
+import Papa from 'papaparse'; // <-- Add static import
 
 // Initialize Appwrite Client
 const client = new Client();
@@ -48,7 +49,7 @@ const AuthService = {
         password,
         name
       );
-      
+
       if (response.$id) {
         // Login immediately after account creation
         await AuthService.login(email, password);
@@ -63,7 +64,7 @@ const AuthService = {
   // Login to the account
   login: async (email, password) => {
     try {
-      return await account.createEmailSession(email, password);
+      return await account.createEmailPasswordSession(email, password);
     } catch (error) {
       console.error('Appwrite login error:', error);
       throw error;
@@ -102,20 +103,20 @@ const AuthService = {
       return false;
     }
   },
-  
+
   // Invite a user (admin only)
   inviteUser: async (email, isAdmin = false) => {
     try {
       // This would normally use a server function, but for simplicity:
       // 1. Create a URL for registration
       // 2. Send it via email (would be handled by a server function)
-      
+
       // For now, just return the invitation URL that you would manually send
       const inviteUrl = `${window.location.origin}/register?email=${encodeURIComponent(email)}&invited=true${isAdmin ? '&role=admin' : ''}`;
-      
+
       console.log('Invitation URL created:', inviteUrl);
       return inviteUrl;
-      
+
       // In a real implementation, you would:
       // 1. Call a server function to create a user or send an invitation
       // 2. The server function would handle setting proper permissions and roles
@@ -156,33 +157,33 @@ const BookService = {
       throw error;
     }
   },
-  
+
   // Create a new book
   createBook: async (bookData) => {
     try {
       const { id, ...data } = bookData;
-      
+
       const documentId = id || ID.unique();
       const isAdmin = await isUserAdmin();
-      
+
       // Set permissions
       const permissions = [
         Permission.read(Role.any()), // All authenticated users can read
       ];
-      
+
       if (isAdmin) {
         permissions.push(
           Permission.update(Role.label('admin')),
           Permission.delete(Role.label('admin'))
         );
       }
-      
+
       // Format dates if needed
       if (data.acquisitionDate) {
         // Ensure acquisitionDate is stored as ISO string
         data.acquisitionDate = new Date(data.acquisitionDate).toISOString();
       }
-      
+
       return await databases.createDocument(
         APPWRITE_DATABASE_ID,
         APPWRITE_BOOKS_COLLECTION_ID,
@@ -195,22 +196,22 @@ const BookService = {
       throw error;
     }
   },
-  
+
   // Update an existing book
   updateBook: async (id, bookData) => {
     try {
       // Remove id from the data to be updated
       const { id: _, ...data } = bookData;
-      
+
       // Format dates if needed
       if (data.acquisitionDate) {
         // Ensure acquisitionDate is stored as ISO string
         data.acquisitionDate = new Date(data.acquisitionDate).toISOString();
       }
-      
+
       // Include updatedAt timestamp
       data.updatedAt = new Date().toISOString();
-      
+
       return await databases.updateDocument(
         APPWRITE_DATABASE_ID,
         APPWRITE_BOOKS_COLLECTION_ID,
@@ -222,7 +223,7 @@ const BookService = {
       throw error;
     }
   },
-  
+
   // Delete a book
   deleteBook: async (id) => {
     try {
@@ -237,7 +238,7 @@ const BookService = {
       throw error;
     }
   },
-  
+
   // Upload a book cover image
   uploadCoverImage: async (file) => {
     try {
@@ -246,7 +247,7 @@ const BookService = {
         ID.unique(),
         file
       );
-      
+
       // Get the file view URL
       const fileUrl = storage.getFileView(APPWRITE_BUCKET_ID, result.$id);
       return { id: result.$id, url: fileUrl };
@@ -273,7 +274,7 @@ const AuthorService = {
       throw error;
     }
   },
-  
+
   // Get a single author
   getAuthor: async (id) => {
     try {
@@ -287,27 +288,27 @@ const AuthorService = {
       throw error;
     }
   },
-  
+
   // Create a new author
   createAuthor: async (authorData) => {
     try {
       const { id, ...data } = authorData;
-      
+
       const documentId = id || ID.unique();
       const isAdmin = await isUserAdmin();
-      
+
       // Set permissions
       const permissions = [
         Permission.read(Role.any()), // All authenticated users can read
       ];
-      
+
       if (isAdmin) {
         permissions.push(
           Permission.update(Role.label('admin')),
           Permission.delete(Role.label('admin'))
         );
       }
-      
+
       return await databases.createDocument(
         APPWRITE_DATABASE_ID,
         APPWRITE_AUTHORS_COLLECTION_ID,
@@ -320,13 +321,13 @@ const AuthorService = {
       throw error;
     }
   },
-  
+
   // Update an existing author
   updateAuthor: async (id, authorData) => {
     try {
       // Remove id from the data to be updated
       const { id: _, ...data } = authorData;
-      
+
       return await databases.updateDocument(
         APPWRITE_DATABASE_ID,
         APPWRITE_AUTHORS_COLLECTION_ID,
@@ -338,7 +339,7 @@ const AuthorService = {
       throw error;
     }
   },
-  
+
   // Delete an author
   deleteAuthor: async (id) => {
     try {
@@ -371,27 +372,27 @@ const CategoryService = {
       throw error;
     }
   },
-  
+
   // Create a new category
   createCategory: async (categoryData) => {
     try {
       const { id, ...data } = categoryData;
-      
+
       const documentId = id || ID.unique();
       const isAdmin = await isUserAdmin();
-      
+
       // Set permissions
       const permissions = [
         Permission.read(Role.any()), // All authenticated users can read
       ];
-      
+
       if (isAdmin) {
         permissions.push(
           Permission.update(Role.label('admin')),
           Permission.delete(Role.label('admin'))
         );
       }
-      
+
       return await databases.createDocument(
         APPWRITE_DATABASE_ID,
         APPWRITE_CATEGORIES_COLLECTION_ID,
@@ -404,13 +405,13 @@ const CategoryService = {
       throw error;
     }
   },
-  
+
   // Update an existing category
   updateCategory: async (id, categoryData) => {
     try {
       // Remove id from the data to be updated
       const { id: _, ...data } = categoryData;
-      
+
       return await databases.updateDocument(
         APPWRITE_DATABASE_ID,
         APPWRITE_CATEGORIES_COLLECTION_ID,
@@ -422,7 +423,7 @@ const CategoryService = {
       throw error;
     }
   },
-  
+
   // Delete a category
   deleteCategory: async (id) => {
     try {
@@ -455,27 +456,27 @@ const PublisherService = {
       throw error;
     }
   },
-  
+
   // Create a new publisher
   createPublisher: async (publisherData) => {
     try {
       const { id, ...data } = publisherData;
-      
+
       const documentId = id || ID.unique();
       const isAdmin = await isUserAdmin();
-      
+
       // Set permissions
       const permissions = [
         Permission.read(Role.any()), // All authenticated users can read
       ];
-      
+
       if (isAdmin) {
         permissions.push(
           Permission.update(Role.label('admin')),
           Permission.delete(Role.label('admin'))
         );
       }
-      
+
       return await databases.createDocument(
         APPWRITE_DATABASE_ID,
         APPWRITE_PUBLISHERS_COLLECTION_ID,
@@ -488,13 +489,13 @@ const PublisherService = {
       throw error;
     }
   },
-  
+
   // Update an existing publisher
   updatePublisher: async (id, publisherData) => {
     try {
       // Remove id from the data to be updated
       const { id: _, ...data } = publisherData;
-      
+
       return await databases.updateDocument(
         APPWRITE_DATABASE_ID,
         APPWRITE_PUBLISHERS_COLLECTION_ID,
@@ -506,7 +507,7 @@ const PublisherService = {
       throw error;
     }
   },
-  
+
   // Delete a publisher
   deletePublisher: async (id) => {
     try {
@@ -539,40 +540,40 @@ const LoanService = {
       throw error;
     }
   },
-  
+
   // Create a new loan
   createLoan: async (loanData) => {
     try {
       const { id, ...data } = loanData;
-      
+
       const documentId = id || ID.unique();
       const isAdmin = await isUserAdmin();
-      
+
       // Set permissions
       const permissions = [
         Permission.read(Role.any()), // All authenticated users can read
       ];
-      
+
       if (isAdmin) {
         permissions.push(
           Permission.update(Role.label('admin')),
           Permission.delete(Role.label('admin'))
         );
       }
-      
+
       // Format dates
       if (data.loanDate) {
         data.loanDate = new Date(data.loanDate).toISOString();
       }
-      
+
       if (data.dueDate) {
         data.dueDate = new Date(data.dueDate).toISOString();
       }
-      
+
       if (data.returnDate) {
         data.returnDate = new Date(data.returnDate).toISOString();
       }
-      
+
       return await databases.createDocument(
         APPWRITE_DATABASE_ID,
         APPWRITE_LOANS_COLLECTION_ID,
@@ -585,26 +586,26 @@ const LoanService = {
       throw error;
     }
   },
-  
+
   // Update an existing loan
   updateLoan: async (id, loanData) => {
     try {
       // Remove id from the data to be updated
       const { id: _, ...data } = loanData;
-      
+
       // Format dates
       if (data.loanDate) {
         data.loanDate = new Date(data.loanDate).toISOString();
       }
-      
+
       if (data.dueDate) {
         data.dueDate = new Date(data.dueDate).toISOString();
       }
-      
+
       if (data.returnDate) {
         data.returnDate = new Date(data.returnDate).toISOString();
       }
-      
+
       return await databases.updateDocument(
         APPWRITE_DATABASE_ID,
         APPWRITE_LOANS_COLLECTION_ID,
@@ -616,7 +617,7 @@ const LoanService = {
       throw error;
     }
   },
-  
+
   // Delete a loan
   deleteLoan: async (id) => {
     try {
@@ -643,11 +644,11 @@ const StatisticsService = {
         APPWRITE_STATISTICS_COLLECTION_ID,
         [Query.limit(1)]
       );
-      
+
       if (response.documents.length > 0) {
         return response.documents[0];
       }
-      
+
       // Create a default statistics document if none exists
       return await StatisticsService.createDefaultStatistics();
     } catch (error) {
@@ -655,34 +656,32 @@ const StatisticsService = {
       throw error;
     }
   },
-  
+
   // Create default statistics
   createDefaultStatistics: async () => {
     try {
       const defaultStats = {
         defaultLanguage: 'Hebrew',
-        defaultLoanPeriod: 14,
         showNotifications: true,
         autoBackup: true,
-        backupInterval: 7,
         lastSync: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      
+
       const isAdmin = await isUserAdmin();
-      
+
       // Set permissions
       const permissions = [
         Permission.read(Role.any()), // All authenticated users can read
       ];
-      
+
       if (isAdmin) {
         permissions.push(
           Permission.update(Role.label('admin')),
           Permission.delete(Role.label('admin'))
         );
       }
-      
+
       return await databases.createDocument(
         APPWRITE_DATABASE_ID,
         APPWRITE_STATISTICS_COLLECTION_ID,
@@ -695,16 +694,16 @@ const StatisticsService = {
       throw error;
     }
   },
-  
+
   // Update statistics
   updateStatistics: async (statisticsData) => {
     try {
       // Get current statistics
       const currentStats = await StatisticsService.getStatistics();
-      
+
       // Update with new data
       statisticsData.updatedAt = new Date().toISOString();
-      
+
       return await databases.updateDocument(
         APPWRITE_DATABASE_ID,
         APPWRITE_STATISTICS_COLLECTION_ID,
@@ -724,46 +723,20 @@ const CsvService = {
   importFromCsv: async (file, importType) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      
+
       reader.onload = async (e) => {
         try {
           const csvText = e.target.result;
-          
-          // Use PapaParse to parse CSV
-          const Papa = await import('papaparse');
-          
-          Papa.default.parse(csvText, {
+
+          // Use statically imported PapaParse
+          Papa.parse(csvText, {
             header: true,
             dynamicTyping: true,
             skipEmptyLines: true,
             transformHeader: header => header.trim(),
-            complete: async (results) => {
-              try {
-                // Process the parsed data based on importType
-                switch (importType) {
-                  case 'books':
-                    await CsvService.importBooks(results.data);
-                    break;
-                  case 'authors':
-                    await CsvService.importAuthors(results.data);
-                    break;
-                  case 'categories':
-                    await CsvService.importCategories(results.data);
-                    break;
-                  case 'publishers':
-                    await CsvService.importPublishers(results.data);
-                    break;
-                  case 'loans':
-                    await CsvService.importLoans(results.data);
-                    break;
-                  default:
-                    throw new Error(`Unsupported import type: ${importType}`);
-                }
-                
-                resolve(results.data);
-              } catch (error) {
-                reject(error);
-              }
+            complete: (results) => {
+              // Resolve with parsed data only, actual import happens in handleImport
+              resolve(results.data);
             },
             error: (error) => {
               reject(new Error(`CSV parsing error: ${error.message}`));
@@ -773,24 +746,51 @@ const CsvService = {
           reject(error);
         }
       };
-      
+
       reader.onerror = () => {
         reject(new Error('Error reading file'));
       };
-      
+
       reader.readAsText(file);
     });
   },
-  
+
   // Process and import books
   importBooks: async (booksData) => {
     for (const bookData of booksData) {
       try {
+        const authorName = bookData['מחבר']?.trim() || bookData.author?.trim();
+        let authorId = null;
+
+        if (authorName) {
+          // Check if author exists
+          try {
+            const existingAuthors = await databases.listDocuments(
+              APPWRITE_DATABASE_ID,
+              APPWRITE_AUTHORS_COLLECTION_ID,
+              [Query.equal('name', authorName), Query.limit(1)]
+            );
+
+            if (existingAuthors.total > 0) {
+              authorId = existingAuthors.documents[0].$id;
+            } else {
+              // Author doesn't exist, create them
+              console.log(`Creating new author: ${authorName}`);
+              const newAuthor = await AuthorService.createAuthor({ name: authorName });
+              authorId = newAuthor.$id;
+            }
+          } catch (authorError) {
+            console.error(`Error finding or creating author "${authorName}":`, authorError);
+            // Decide how to handle: skip book, assign null, etc.
+            // For now, we'll skip assigning an author if there's an error.
+          }
+        }
+
         // Convert fields to match the schema
         const processedBook = {
           id: bookData.ID || ID.unique(),
           title: bookData['שם הספר'] || bookData.title || '',
-          author: bookData['מחבר'] || bookData.author || '', // This should be an ID
+          author: authorId, // Use the found or created author ID
           series: bookData['סדרה'] || bookData.series || '',
           volumeInSeries: bookData['כרך בסדרה'] || bookData.volumeInSeries || null,
           part: bookData['חלק'] || bookData.part || '',
@@ -806,7 +806,7 @@ const CsvService = {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
-        
+
         // Create the book
         await BookService.createBook(processedBook);
       } catch (error) {
@@ -815,7 +815,7 @@ const CsvService = {
       }
     }
   },
-  
+
   // Process and import authors
   importAuthors: async (authorsData) => {
     for (const authorData of authorsData) {
@@ -829,7 +829,7 @@ const CsvService = {
           nationality: authorData.nationality || '',
           notes: authorData.notes || '',
         };
-        
+
         await AuthorService.createAuthor(processedAuthor);
       } catch (error) {
         console.error(`Error importing author: ${error.message}`, authorData);
@@ -837,7 +837,7 @@ const CsvService = {
       }
     }
   },
-  
+
   // Process and import categories
   importCategories: async (categoriesData) => {
     for (const categoryData of categoriesData) {
@@ -849,7 +849,7 @@ const CsvService = {
           color: categoryData.color || '#1890ff',
           parent: categoryData.parent || null,
         };
-        
+
         await CategoryService.createCategory(processedCategory);
       } catch (error) {
         console.error(`Error importing category: ${error.message}`, categoryData);
@@ -857,7 +857,7 @@ const CsvService = {
       }
     }
   },
-  
+
   // Process and import publishers
   importPublishers: async (publishersData) => {
     for (const publisherData of publishersData) {
@@ -869,7 +869,7 @@ const CsvService = {
           website: publisherData.website || '',
           notes: publisherData.notes || '',
         };
-        
+
         await PublisherService.createPublisher(processedPublisher);
       } catch (error) {
         console.error(`Error importing publisher: ${error.message}`, publisherData);
@@ -877,7 +877,7 @@ const CsvService = {
       }
     }
   },
-  
+
   // Process and import loans
   importLoans: async (loansData) => {
     for (const loanData of loansData) {
@@ -893,7 +893,7 @@ const CsvService = {
           status: loanData.status || 'active',
           notes: loanData.notes || '',
         };
-        
+
         await LoanService.createLoan(processedLoan);
       } catch (error) {
         console.error(`Error importing loan: ${error.message}`, loanData);
@@ -901,13 +901,13 @@ const CsvService = {
       }
     }
   },
-  
+
   // Export data to CSV
   exportToCsv: async (data, fileName, exportType) => {
     try {
       // Process data based on export type if needed
       let processedData = data;
-      
+
       if (exportType === 'books') {
         processedData = data.map(book => ({
           'ID': book.$id || book.id,
@@ -930,17 +930,15 @@ const CsvService = {
           'דירוג': book.rating || '',
         }));
       }
-      
-      // Import PapaParse
-      const Papa = await import('papaparse');
-      
+
+      // Use statically imported PapaParse
       // Convert to CSV
-      const csv = Papa.default.unparse(processedData, {
+      const csv = Papa.unparse(processedData, {
         quotes: true,
         delimiter: ",",
         header: true
       });
-      
+
       // Create download link
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -951,20 +949,20 @@ const CsvService = {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       return true;
     } catch (error) {
       console.error('Error exporting to CSV:', error);
       throw error;
     }
   },
-  
+
   // Export data to JSON
   exportToJson: async (data, fileName) => {
     try {
       // Convert to JSON string with pretty formatting
       const json = JSON.stringify(data, null, 2);
-      
+
       // Create download link
       const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -975,7 +973,7 @@ const CsvService = {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       return true;
     } catch (error) {
       console.error('Error exporting to JSON:', error);

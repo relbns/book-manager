@@ -1,12 +1,20 @@
-// src/components/Auth/Login.jsx
 import React, { useState } from 'react';
-import { Form, Input, Button, Typography, Alert, Card, Space } from 'antd';
-import { GithubOutlined, LockOutlined } from '@ant-design/icons';
+import {
+  Form,
+  Input,
+  Button,
+  Typography,
+  Alert,
+  Card,
+  Space,
+  Divider,
+} from 'antd';
+import { LockOutlined, MailOutlined, UserOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
-import { useNavigate } from 'react-router-dom';
-import gistService from '../../services/gistService';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAppContext } from '../../context/AppContext';
 
-const { Title, Text, Link } = Typography;
+const { Title, Text } = Typography;
 
 const LoginContainer = styled.div`
   display: flex;
@@ -27,41 +35,23 @@ const LoginCard = styled(Card)`
   }
 `;
 
-const Login = ({ onLoginSuccess, theme }) => {
+const Login = () => {
+  const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { handleLogin, theme } = useAppContext();
 
   const handleSubmit = async (values) => {
     setLoading(true);
     setError('');
 
     try {
-      const { token } = values;
-
-      // Verify token
-      const isValid = await gistService.verifyToken(token);
-
-      if (isValid) {
-        // Save token (encrypted)
-        gistService.saveToken(token);
-
-        // Find or create app gist
-        const gistId = await gistService.findOrCreateAppGist();
-
-        // Save gistId in session storage
-        sessionStorage.setItem('bookManagerGistId', gistId);
-
-        // Call the onLoginSuccess callback
-        onLoginSuccess();
-
-        // Navigate to home page
-        navigate('/');
-      } else {
-        setError('Invalid GitHub token. Please check and try again.');
-      }
+      const { email, password } = values;
+      await handleLogin(email, password);
+      navigate('/');
     } catch (err) {
-      setError('Authentication failed. Please check your token and try again.');
+      setError('התחברות נכשלה. אנא בדוק את האימייל והסיסמה שלך ונסה שוב.');
       console.error('Login error:', err);
     } finally {
       setLoading(false);
@@ -73,33 +63,58 @@ const Login = ({ onLoginSuccess, theme }) => {
       <LoginCard>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <div style={{ textAlign: 'center' }}>
-            <GithubOutlined style={{ fontSize: 42 }} />
+            <UserOutlined style={{ fontSize: 42 }} />
             <Title level={2} style={{ marginTop: 16 }}>
               מנהל הספרים
             </Title>
             <Text type="secondary" dir="rtl">
-              ניהול ספרייה אישית עם GitHub Gist
+              התחבר למערכת ניהול הספרייה שלך
             </Text>
           </div>
 
           {error && <Alert message={error} type="error" showIcon />}
 
-          <Form name="login" onFinish={handleSubmit} layout="vertical">
+          <Form
+            name="login"
+            form={form}
+            onFinish={handleSubmit}
+            layout="vertical"
+          >
             <Form.Item
-              name="token"
+              name="email"
+              label="אימייל"
               rules={[
                 {
                   required: true,
-                  message: 'נא להזין את הטוקן האישי שלך מ-GitHub',
+                  message: 'אנא הזן את כתובת האימייל שלך',
+                },
+                {
+                  type: 'email',
+                  message: 'אנא הזן כתובת אימייל תקינה',
                 },
               ]}
-              label={<span dir="rtl">GitHub Personal Access Token</span>}
+            >
+              <Input
+                prefix={<MailOutlined />}
+                placeholder="הזן את האימייל שלך"
+                size="large"
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="password"
+              label="סיסמה"
+              rules={[
+                {
+                  required: true,
+                  message: 'אנא הזן את הסיסמה שלך',
+                },
+              ]}
             >
               <Input.Password
                 prefix={<LockOutlined />}
-                placeholder="הזן את הטוקן האישי"
+                placeholder="הזן את הסיסמה שלך"
                 size="large"
-                dir="ltr"
               />
             </Form.Item>
 
@@ -116,15 +131,17 @@ const Login = ({ onLoginSuccess, theme }) => {
             </Form.Item>
           </Form>
 
-          <Text type="secondary" dir="rtl">
-            <Link
-              href="https://github.com/settings/tokens"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              צור טוקן אישי ב-GitHub
-            </Link>{' '}
-            - דרושות הרשאות gist:read ו-gist:write
+          <Divider>או</Divider>
+
+          <Button block onClick={() => navigate('/register')}>
+            הרשמה למערכת
+          </Button>
+
+          <Text
+            type="secondary"
+            style={{ textAlign: 'center', display: 'block', marginTop: 16 }}
+          >
+            <Link to="/forgot-password">שכחת את הסיסמה?</Link>
           </Text>
         </Space>
       </LoginCard>

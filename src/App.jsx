@@ -3,7 +3,14 @@ import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useAppContext } from './context/AppContext';
 import { ThemeProvider } from './config/theme.jsx';
+
+// Auth Components
 import Login from './components/Auth/Login';
+import Register from './components/Auth/Register';
+import ForgotPassword from './components/Auth/ForgotPassword';
+import ResetPassword from './components/Auth/ResetPassword';
+
+// Layout Component
 import AppLayout from './components/Layout/AppLayout';
 import LoadingScreen from './components/common/LoadingScreen';
 
@@ -18,17 +25,22 @@ const PublishersPage = React.lazy(() => import('./pages/Publishers'));
 const ImportPage = React.lazy(() => import('./pages/Import'));
 const ExportPage = React.lazy(() => import('./pages/Export'));
 const SettingsPage = React.lazy(() => import('./pages/Settings'));
+const UserManagementPage = React.lazy(() => import('./pages/UserManagement'));
 
-// Protected route component
-const ProtectedRoute = ({ children }) => {
-  const { authenticated, loading, theme } = useAppContext();
+// Protected route component that checks for authentication
+const ProtectedRoute = ({ children, adminOnly = false }) => {
+  const { authenticated, loading, theme, isAdmin } = useAppContext();
 
   if (loading) {
-    return <LoadingScreen theme={theme} message="מאמת הרשאות..." />;
+    return <LoadingScreen theme={theme} message="אימות הרשאות..." />;
   }
 
   if (!authenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (adminOnly && !isAdmin) {
+    return <Navigate to="/" replace />;
   }
 
   return children;
@@ -36,23 +48,42 @@ const ProtectedRoute = ({ children }) => {
 
 // App with auth check
 const AppWithAuth = () => {
-  const { authenticated, handleLoginSuccess, theme } = useAppContext();
+  const { authenticated, loading, theme } = useAppContext();
+
+  if (loading) {
+    return <LoadingScreen theme={theme} message="טוען..." />;
+  }
 
   return (
     <ThemeProvider theme={theme}>
       <HashRouter>
         <Routes>
+          {/* Auth Routes */}
           <Route
             path="/login"
+            element={authenticated ? <Navigate to="/" replace /> : <Login />}
+          />
+
+          <Route
+            path="/register"
+            element={authenticated ? <Navigate to="/" replace /> : <Register />}
+          />
+
+          <Route
+            path="/forgot-password"
             element={
-              authenticated ? (
-                <Navigate to="/" replace />
-              ) : (
-                <Login onLoginSuccess={handleLoginSuccess} theme={theme} />
-              )
+              authenticated ? <Navigate to="/" replace /> : <ForgotPassword />
             }
           />
 
+          <Route
+            path="/reset-password"
+            element={
+              authenticated ? <Navigate to="/" replace /> : <ResetPassword />
+            }
+          />
+
+          {/* Protected Routes */}
           <Route
             path="/"
             element={
@@ -175,7 +206,7 @@ const AppWithAuth = () => {
           <Route
             path="/import"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute adminOnly={true}>
                 <AppLayout>
                   <React.Suspense
                     fallback={
@@ -217,6 +248,23 @@ const AppWithAuth = () => {
                     }
                   >
                     <SettingsPage />
+                  </React.Suspense>
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute adminOnly={true}>
+                <AppLayout>
+                  <React.Suspense
+                    fallback={
+                      <LoadingScreen theme={theme} message="טוען דף..." />
+                    }
+                  >
+                    <UserManagementPage />
                   </React.Suspense>
                 </AppLayout>
               </ProtectedRoute>

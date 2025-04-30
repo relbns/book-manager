@@ -14,7 +14,7 @@ export const importFromCSV = (file, importType = 'books') => {
             complete: (results) => {
                 try {
                     // Validate imported data
-                    const validatedData = validateImportData(results.data, importType);
+                    let validatedData = validateImportData(results.data, importType); // Changed const to let
 
                     // Handle specific importType data transformations
                     if (importType === 'books') {

@@ -22,6 +22,7 @@ import {
   LoadingOutlined,
   FileExcelOutlined,
   FileOutlined,
+  ExclamationCircleOutlined, // Added for error display
 } from '@ant-design/icons';
 import styled from 'styled-components';
 import { useAppContext } from '../context/AppContext';
@@ -126,7 +127,8 @@ const Import = () => {
         });
       } else {
         // Parse CSV file
-        data = await csvService.importFromCSV(file, importType);
+        const parsedCsvData = await csvService.importFromCSV(file, importType);
+        data = parsedCsvData; // Assign to the 'let' variable
       }
 
       setFileData(data);
@@ -183,17 +185,27 @@ const Import = () => {
     return bookData;
   };
 
-  // Handle import
+  // Helper function for delay
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  // Handle import with batching
   const handleImport = async () => {
     if (!fileData.length) {
       message.error('אין נתונים לייבוא');
       return;
     }
 
-    try {
-      setLoading(true);
-      setError(null);
+    setLoading(true);
+    setError(null);
+    setImportResult(null); // Reset previous results
 
+    const batchSize = 50; // Process 50 records per batch
+    const delayBetweenBatches = 1000; // 1 second delay
+    let importedCount = 0;
+    let errorCount = 0;
+    const totalRecords = fileData.length;
+
+    try {
       const modelCreator = modelCreators[importType];
       const addFunction = addFunctions[importType];
 
@@ -201,36 +213,61 @@ const Import = () => {
         throw new Error(`סוג היבוא ${importType} אינו נתמך`);
       }
 
-      // Create models and add to collections
-      const results = [];
+      for (let i = 0; i < totalRecords; i += batchSize) {
+        const batch = fileData.slice(i, i + batchSize);
+        console.log(`Importing batch ${i / batchSize + 1} of ${Math.ceil(totalRecords / batchSize)}...`);
+        message.info(`מעבד ${i + batch.length} מתוך ${totalRecords} רשומות...`); // Progress update
 
-      for (const item of fileData) {
-        let processedItem = item;
-
-        // Special processing for books
-        if (importType === 'books') {
-          processedItem = processBookData(item);
+        for (const item of batch) {
+          try {
+            let processedItem = item;
+            if (importType === 'books') {
+              processedItem = processBookData(item); // Assuming processBookData is synchronous or fast
+            }
+            const model = modelCreator(processedItem);
+            await addFunction(model);
+            importedCount++;
+          } catch (itemError) {
+            console.error(`Error importing item: ${itemError.message}`, item);
+            setError(`שגיאה בייבוא רשומה: ${itemError.message}`); // Show last error
+            errorCount++;
+            // Optional: Decide whether to stop or continue on item error
+            // if (errorCount > 10) throw new Error("Too many errors during import.");
+          }
         }
 
-        const model = modelCreator(processedItem);
-        await addFunction(model);
-        results.push(model);
+        // Wait before processing the next batch (if there are more batches)
+        if (i + batchSize < totalRecords) {
+          await sleep(delayBetweenBatches);
+        }
       }
 
+      // Update state after all batches are processed
       setImportResult({
-        count: results.length,
+        count: importedCount,
+        total: totalRecords,
+        errors: errorCount,
         type: importType,
       });
 
-      setCurrentStep(2);
-      message.success(`יובאו ${results.length} רשומות בהצלחה`);
+      setCurrentStep(2); // Move to the final step
+
+      if (errorCount > 0) {
+         message.warning(`הייבוא הושלם עם ${errorCount} שגיאות. יובאו ${importedCount} מתוך ${totalRecords} רשומות.`);
+      } else {
+         message.success(`יובאו ${importedCount} רשומות בהצלחה!`);
+      }
+
     } catch (err) {
+      // Catch errors from batch processing logic or fatal errors
       setError(err.message);
-      message.error(`שגיאה בייבוא: ${err.message}`);
+      message.error(`שגיאה קריטית בייבוא: ${err.message}`);
+      // Keep user on step 1 or 2 depending on where the error occurred
     } finally {
       setLoading(false);
     }
   };
+
 
   // Reset import
   const resetImport = () => {
@@ -454,15 +491,47 @@ const Import = () => {
       title: 'ייבוא',
       content: (
         <>
-          {importResult && (
+          {loading && ( // Show loading indicator during import
             <div style={{ textAlign: 'center', padding: 24 }}>
-              <CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a' }} />
-              <Title level={3}>הייבוא הושלם בהצלחה!</Title>
-              <Paragraph>
-                יובאו {importResult.count} רשומות מסוג {importResult.type}.
-              </Paragraph>
+              <LoadingOutlined style={{ fontSize: 24 }} />
+              <p>מייבא נתונים (זה עשוי לקחת זמן)...</p>
+              {importResult && <p>יובאו {importResult.count} מתוך {importResult.total}</p>}
             </div>
           )}
+          {!loading && importResult && (
+            <div style={{ textAlign: 'center', padding: 24 }}>
+              {importResult.errors === 0 ? (
+                <>
+                  <CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a' }} />
+                  <Title level={3}>הייבוא הושלם בהצלחה!</Title>
+                  <Paragraph>
+                    יובאו {importResult.count} רשומות מסוג {importResult.type}.
+                  </Paragraph>
+                </>
+              ) : (
+                <>
+                  <ExclamationCircleOutlined style={{ fontSize: 48, color: '#faad14' }} />
+                  <Title level={3}>הייבוא הושלם עם שגיאות</Title>
+                  <Paragraph>
+                    יובאו {importResult.count} מתוך {importResult.total} רשומות מסוג {importResult.type}.
+                  </Paragraph>
+                  <Paragraph type="danger">
+                    נתקלו ב-{importResult.errors} שגיאות במהלך הייבוא. בדוק את יומני המסוף לפרטים.
+                  </Paragraph>
+                  {error && <Alert message="שגיאה אחרונה" description={error} type="error" showIcon />}
+                </>
+              )}
+            </div>
+          )}
+           {!loading && error && !importResult && ( // Show critical error if import failed entirely
+               <Alert
+                  message="שגיאה קריטית בייבוא"
+                  description={error}
+                  type="error"
+                  showIcon
+                  style={{ marginBottom: 16 }}
+                />
+           )}
         </>
       ),
     },
