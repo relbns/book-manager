@@ -1,2 +1,0 @@
-import{r as o,I as s,bg as i}from"./index-DfQ1CJXr.js";function e(){return e=Object.assign?Object.assign.bind():function(t){for(var n=1;n<arguments.length;n++){var r=arguments[n];for(var a in r)Object.prototype.hasOwnProperty.call(r,a)&&(t[a]=r[a])}return t},e.apply(this,arguments)}const c=(t,n)=>o.createElement(s,e({},t,{ref:n,icon:i})),g=o.forwardRef(c);export{g as R};
-//# sourceMappingURL=LoadingOutlined-CW9ITjE8.js.map

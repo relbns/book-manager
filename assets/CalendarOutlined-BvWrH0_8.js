@@ -1,0 +1,2 @@
+import{r as o,I as s}from"./index-CXrb2JZa.js";import{a as c}from"./index-CEgkDTaK.js";function e(){return e=Object.assign?Object.assign.bind():function(r){for(var n=1;n<arguments.length;n++){var t=arguments[n];for(var a in t)Object.prototype.hasOwnProperty.call(t,a)&&(r[a]=t[a])}return r},e.apply(this,arguments)}const i=(r,n)=>o.createElement(s,e({},r,{ref:n,icon:c})),p=o.forwardRef(i);export{p as R};
+//# sourceMappingURL=CalendarOutlined-BvWrH0_8.js.map
