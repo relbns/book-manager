@@ -1,7 +1,7 @@
 // src/config/theme.jsx
-import { createCache, StyleProvider } from '@ant-design/cssinjs';
+import { createCache, StyleProvider, extractStyle } from '@ant-design/cssinjs';
 import { ConfigProvider, theme as antTheme } from 'antd';
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { StyleSheetManager } from 'styled-components';
 import rtlPlugin from 'stylis-plugin-rtl';
 
@@ -57,7 +57,8 @@ export const themeConfig = {
 
 // Ant Design configuration wrapper with RTL support
 export const ThemeProvider = ({ children, theme = 'light' }) => {
-  const cache = createCache();
+  // Create a stable cache with memoization to prevent re-creation on re-renders
+  const cache = useMemo(() => createCache(), []);
 
   // Set body theme attribute for global CSS
   useEffect(() => {
@@ -79,7 +80,7 @@ export const ThemeProvider = ({ children, theme = 'light' }) => {
         space={{ size: 'small' }}
         form={{ validateMessages: heIL.Form.defaultValidateMessages }}
       >
-        <StyleProvider cache={cache}>{children}</StyleProvider>
+        <StyleProvider cache={cache} hashPriority="high">{children}</StyleProvider>
       </ConfigProvider>
     </StyleSheetManager>
   );
